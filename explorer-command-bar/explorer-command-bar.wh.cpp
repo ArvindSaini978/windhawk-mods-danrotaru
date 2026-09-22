@@ -2,13 +2,13 @@
 // @id              explorer-command-bar
 // @name            Explorer Command Bar
 // @description     Customize the Windows 11 File Explorer command bar with commands, menus, New+, and a shell context-menu button
-// @version         1.2.0
+// @version         1.3.0
 // @author          DanRotaru (with contributions by ArvindSaini978)
 // @github          https://github.com/DanRotaru
 // @homepage        https://dan13.me/
 // @include         explorer.exe
 // @architecture    x86-64
-// @compilerOptions -ladvapi32 -lgdi32 -lole32 -loleaut32 -lruntimeobject -lshell32 -lshlwapi -luuid
+// @compilerOptions -ladvapi32 -lgdi32 -lole32 -loleaut32 -lruntimeobject -lshell32 -lshlwapi -luuid 
 // @license         MIT
 // ==/WindhawkMod==
 
@@ -41,9 +41,9 @@ Explorer.
   `internal:ToggleDetails`, and `internal:FolderOptions`.
 - **Secondary Command Bar docking** - Optionally dock custom buttons onto the
   right-side command bar to preserve primary toolbar space.
-- **Flexible icons** - a Segoe Fluent Icons glyph, an `.exe` / `.dll` / `.ico`
-  file, a Store-app icon (`shell:AppsFolder\…`), the command executable's own
-  icon, or no icon at all.
+- **Flexible icons** - light and dark theme pairs (`Light | Dark`), a Segoe Fluent
+  Icons glyph, an `.exe` / `.dll` / `.ico` file, a Store-app icon
+  (`shell:AppsFolder\…`), the command executable's own icon, or no icon at all.
 - **Hide built-in elements** - individually hide New, Cut, Copy, Paste, Rename,
   Share, Delete, Sort, View, the group separators, the "See more" (…) overflow
   menu, the contextual commands (Set as background, Rotate left, Rotate right,
@@ -96,6 +96,10 @@ Instead of an executable, the **Command** field can run built-in File Explorer a
 
 The **Icon glyph or icon path** field accepts several forms:
 
+* **Theme-aware icons** - provide both light and dark icons separated by `|`
+  (e.g., `E706 | E708`, `light.ico | dark.ico`, or `| dark.ico` to use the dark
+  icon as fallback for both themes). Icons update dynamically on system theme
+  changes.
 * **A glyph** - a hex code point of a
   [Segoe Fluent Icons](https://learn.microsoft.com/en-us/windows/apps/design/iconography/segoe-fluent-icons-font)
   glyph, e.g. `E756`.
@@ -237,7 +241,9 @@ a new tab or navigating to another folder makes them appear.
         Command line parameters. %path% is replaced with current directory; %sel% is expanded to all highlighted file/folder paths; %sel_each% executes a process instance per item.
     - iconGlyph: E713
       $name: Icon glyph or icon path
-      $description: Fluent icon glyph (e.g. E713), file path (.ico/.dll/.exe), or empty for executable icon.
+      $description: >-
+        Fluent icon glyph (e.g. E713), file path (.ico/.dll/.exe), or empty for executable icon. 
+        Separate with | for theme-aware icons (Light | Dark, or | Dark).
     - hideIcon: false
       $name: Hide icon
       $description: Don't show an icon for this item.
@@ -949,15 +955,15 @@ LRESULT CALLBACK ContextMenuOwnerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
     return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 }
 
-std::wstring ContextMenuOwnerClassName() {
-    return std::wstring(L"WindhawkContextMenuOwner_") + WH_MOD_ID;
-}
-
 HINSTANCE GetCurrentModuleHandle() {
     HINSTANCE hInst = nullptr;
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                       (LPCWSTR)&GetCurrentModuleHandle, &hInst);
     return hInst;
+}
+
+std::wstring ContextMenuOwnerClassName() {
+    return std::wstring(L"WindhawkContextMenuOwner_") + WH_MOD_ID;
 }
 
 std::atomic<bool> g_contextMenuOwnerClassRegistered;
@@ -2013,10 +2019,61 @@ muxc::IconElement CreateGlyphIcon(PCWSTR glyph) {
     return fontIcon;
 }
 
+bool IsSystemDarkModeActive() {
+    DWORD useLightTheme = 1;
+    DWORD size = sizeof(useLightTheme);
+    RegGetValueW(
+        HKEY_CURRENT_USER,
+        L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+        L"AppsUseLightTheme",
+        RRF_RT_REG_DWORD,
+        nullptr,
+        &useLightTheme,
+        &size
+    );
+    return useLightTheme == 0;
+}
+
+std::wstring TrimWhitespaceAndQuotes(std::wstring str) {
+    size_t first = str.find_first_not_of(L" \t");
+    if (first == std::wstring::npos) return L"";
+    size_t last = str.find_last_not_of(L" \t");
+    str = str.substr(first, last - first + 1);
+    if (str.size() >= 2 && str.front() == L'"' && str.back() == L'"') {
+        str = str.substr(1, str.size() - 2);
+        first = str.find_first_not_of(L" \t");
+        if (first == std::wstring::npos) return L"";
+        last = str.find_last_not_of(L" \t");
+        str = str.substr(first, last - first + 1);
+    }
+    return str;
+}
+
+std::wstring ResolveThemedIconString(const std::wstring& rawSetting) {
+    size_t pipePos = rawSetting.find(L'|');
+
+    // Single icon provided (no pipe): applied to both themes
+    if (pipePos == std::wstring::npos) {
+        return TrimWhitespaceAndQuotes(rawSetting);
+    }
+
+    // Split at the pipe: [Light Theme | Dark Theme]
+    std::wstring lightTheme = TrimWhitespaceAndQuotes(rawSetting.substr(0, pipePos));
+    std::wstring darkTheme = TrimWhitespaceAndQuotes(rawSetting.substr(pipePos + 1));
+
+    // Fallbacks if one side is left empty
+    if (lightTheme.empty()) lightTheme = darkTheme;
+    if (darkTheme.empty()) darkTheme = lightTheme;
+
+    return IsSystemDarkModeActive() ? darkTheme : lightTheme;
+}
+
 muxc::IconElement TryCreateIconElement(std::wstring const& iconSetting, std::wstring const& command) {
-    bool isPath = !iconSetting.empty() && LooksLikeIconPath(iconSetting);
-    if (isPath || iconSetting.empty()) {
-        if (auto source = CreateImageSource(*GetIcon(iconSetting, command))) {
+    std::wstring effectiveSetting = ResolveThemedIconString(iconSetting);
+
+    bool isPath = !effectiveSetting.empty() && LooksLikeIconPath(effectiveSetting);
+    if (isPath || effectiveSetting.empty()) {
+        if (auto source = CreateImageSource(*GetIcon(effectiveSetting, command))) {
             muxc::ImageIcon imageIcon;
             imageIcon.Source(source);
             return imageIcon;
@@ -2024,7 +2081,7 @@ muxc::IconElement TryCreateIconElement(std::wstring const& iconSetting, std::wst
     }
 
     std::wstring glyph;
-    if (!isPath) glyph = ParseGlyphSetting(iconSetting.c_str());
+    if (!isPath) glyph = ParseGlyphSetting(effectiveSetting.c_str());
     if (glyph.empty()) return nullptr;
     return CreateGlyphIcon(glyph.c_str());
 }
@@ -3029,16 +3086,24 @@ void OnCommandBarAdded(muxc::CommandBar const& commandBar) {
     CommandBarEntry entry;
     entry.commandBar = winrt::make_weak(commandBar);
 
-    entry.loadedToken = commandBar.Loaded([](wf::IInspectable const& sender, mux::RoutedEventArgs const&) {
-        if (auto commandBar = sender.try_as<muxc::CommandBar>()) UpdateCommandBar(commandBar);
-    });
+    TrackRevoker(commandBar, commandBar.ActualThemeChanged(winrt::auto_revoke, [](mux::FrameworkElement const& sender, wf::IInspectable const&) {
+        if (g_unloading) return;
 
-    entry.vectorChangedToken = commandBar.PrimaryCommands().VectorChanged(
-        [weakCommandBar = winrt::make_weak(commandBar)](wfc::IObservableVector<muxc::ICommandBarElement> const&,
-                                                        wfc::IVectorChangedEventArgs const&) {
-            if (g_unloading) return;
-            QueueCommandBarUpdate(weakCommandBar, true);
-        });
+        // Clear icon cache so new theme icons are decoded
+        {
+            std::lock_guard<std::mutex> lock(g_iconCacheMutex);
+            g_iconCache.clear();
+        }
+
+        if (auto cb = sender.try_as<muxc::CommandBar>()) {
+            try {
+                RemoveOurButtons(cb);
+                UpdateCommandBar(cb);
+            } catch (...) {
+                Wh_Log(L"Error %08X", winrt::to_hresult().value);
+            }
+        }
+    }));
 
     g_entries.push_back(std::move(entry));
     UpdateCommandBar(commandBar);
@@ -3190,6 +3255,7 @@ void WINAPI CommandBarManager_CommandBar_Hook(void* pThis, void* commandBar) {
     CommandBarManager_CommandBar_Original(pThis, commandBar);
     if (g_unloading || !commandBar) return;
     try {
+        EnsureContextMenuOwnerWindow();
         auto const& element = *reinterpret_cast<muxc::CommandBar const*>(commandBar);
         if (!element) return;
         Wh_Log(L"Command bar %s, thread %u", element.Name().c_str(), GetCurrentThreadId());
@@ -3505,6 +3571,7 @@ void LoadSettings() {
     }
 }
 
+
 BOOL Wh_ModInit() {
     Wh_Log(L">");
     LoadSettings();
@@ -3522,6 +3589,7 @@ BOOL Wh_ModInit() {
     RegisterContextMenuOwnerClass();
     return TRUE;
 }
+
 
 void Wh_ModAfterInit() {
     Wh_Log(L">");
