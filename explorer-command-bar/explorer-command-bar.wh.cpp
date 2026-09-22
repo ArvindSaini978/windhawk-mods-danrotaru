@@ -59,6 +59,159 @@ Explorer.
 - **Rock solid** - buttons are re-applied automatically across tab switches,
   navigation, new tabs and new windows, and everything is cleanly restored when
   the mod is disabled.
+
+## Screenshots
+
+Hiding built‑in buttons and separators:
+
+![Hide buttons](https://raw.githubusercontent.com/DanRotaru/windhawk-mods/master/explorer-command-bar/screenshots/hide-buttons.gif)
+
+You may hide even all options, and use only your custom ones:
+
+![Hide All buttons](https://raw.githubusercontent.com/DanRotaru/windhawk-mods/master/explorer-command-bar/screenshots/hide-all-buttons.jpg)
+
+## Command parameters
+
+The following placeholders can be used in an item's parameters:
+
+* `%path%` - the folder path of the currently active tab.
+* `%sel%` - all selected file or folder paths in the active tab, each quoted and separated by a space (e.g., `"file1.txt" "file2.txt"`). Ideal for editors and batch tools.
+* `%sel_each%` - executes the target command once per selected file. Ideal for single-instance tools like classic Notepad.
+
+Wrap placeholders in quotes if desired (e.g. `-d "%path%"` or `"%sel%"`). If a
+used placeholder has no value (nothing selected, or a non-filesystem location
+like *This PC*), the command is launched without any parameters. Commands run
+with the active tab's folder as their working directory.
+
+## Internal commands
+
+Instead of an executable, the **Command** field can run built-in File Explorer actions:
+
+* `internal:TogglePreview` - toggles the Preview pane.
+* `internal:ToggleDetails` - toggles the Details pane.
+* `internal:FolderOptions` - opens the classic Folder Options control panel dialog.
+
+## Icons
+
+The **Icon glyph or icon path** field accepts several forms:
+
+* **A glyph** - a hex code point of a
+  [Segoe Fluent Icons](https://learn.microsoft.com/en-us/windows/apps/design/iconography/segoe-fluent-icons-font)
+  glyph, e.g. `E756`.
+* **A file path** - an `.exe`, `.dll` or `.ico` file to take the icon from,
+  optionally with an icon index, e.g. `C:\Windows\System32\shell32.dll,3`.
+* **A Store app** - `shell:AppsFolder\<AppUserModelID>` to use a modern Store
+  app's icon (useful for apps whose `.exe` stub carries a legacy icon, such as
+  Notepad and Calculator).
+* **Empty** - the icon is extracted from the command's executable (app
+  execution aliases such as `wt.exe` are resolved to their real target).
+* **Hide icon** - enable the toggle to show no icon at all.
+
+## Context menu item
+
+Enable **Add the context menu item** in the **Context menu item** settings
+group to append a button which expands File Explorer's real shell context menu.
+It shows the selected items' menu, or the current folder's background menu when
+nothing is selected. Shell extensions and nested entries such as *Open with*
+and *Send to* are supported, and Shift-click includes extended verbs.
+
+The **Let File Explorer show the menu** option is intended for Nilesoft Shell.
+Because Nilesoft replaces the menu from inside Explorer rather than exposing an
+`IContextMenu` handler, this option asks the active file list to display its own
+menu. In that mode Explorer chooses its position.
+
+## Replace New to New+
+
+The **Replace New to New+** group turns Explorer's own **New** button into a
+*New+* button: instead of Explorer's fixed list of file types, the dropdown
+lists the templates of the
+[PowerToys **New+**](https://learn.microsoft.com/en-us/windows/powertoys/newplus)
+utility, and clicking one creates a copy of it in the current folder, selected
+and ready to be renamed.
+
+PowerToys is **not** required: the mod copies the templates itself and never
+talks to the New+ shell extension. It only reads PowerToys' New+ settings file
+(if there is one) to find the templates folder and the *Hide file extension* /
+*Hide starting digits* / *Replace variables* options. Without PowerToys the New+
+defaults are used: templates are read from
+`%LOCALAPPDATA%\Microsoft\PowerToys\NewPlus\Templates`, extensions and starting
+digits are hidden, and variables are not replaced. Any folder can be used
+instead via the **Templates folder** setting.
+
+Every file and folder directly inside the templates folder becomes a menu entry
+(hidden and system files, and `desktop.ini`, are skipped). Folder templates are
+listed first, then files, in the order File Explorer itself would list them, and
+if the name is already taken ` (2)`, ` (3)`, … is appended. The menu is built
+when it's opened, so templates added or removed in the meantime show up without
+reloading anything.
+
+The button takes the place of Explorer's New button, which is collapsed (and can
+be kept visible). Its **label** and **icon** are configurable: with a label the
+familiar chevron (˅) is drawn after the text, and with an empty label - or with
+the label turned off - only the icon is shown, without a chevron. An empty icon
+setting reuses the icon of Explorer's own New button.
+
+### Filename variables
+
+When *Replace variables* is enabled in PowerToys, these are substituted in the
+name of the created copy:
+
+| Variable | Meaning |
+| --- | --- |
+| `$YYYY` | Year, four digits |
+| `$YY` | Year, two digits |
+| `$MM` | Month, two digits |
+| `$DD` | Day, two digits |
+| `$hh` | Hour, two digits (24h) |
+| `$mm` | Minute, two digits |
+| `$ss` | Second, two digits |
+| `$PARENT_FOLDER_NAME` | Name of the folder the item is created in |
+
+Unlike New+, variables are replaced in the file *name* only, never inside the
+file contents.
+
+## Default configuration
+
+Out of the box the mod adds:
+
+* **Open in Terminal** - `wt.exe -d "%path%"`
+* **Open in Notepad** - `notepad.exe "%sel_each%"`
+* **Additional** ▾ (dropdown)
+  * Open in VS Code - `code.exe "%sel%"`
+  * Open Paint - `mspaint.exe`
+  * Open Calculator - `calc.exe`
+  * **Commands** ▸ - `vite`, `npm init`, `npm install`, `npm run dev`,
+    `npm run build`, `npm run start`
+  * **AI** ▸ - `Claude`, `Codex`
+
+Items whose command isn't installed simply do nothing when clicked (the failure
+is written to the mod log), so remove the ones you don't need and add your own.
+All of the built-in buttons stay visible by default, and the New+ button is
+turned off. Everything is configurable in the mod settings.
+
+## How it works
+
+The mod hooks a couple of functions of File Explorer's own WinUI 3 code
+(`FileExplorerExtensions.dll`) which run when the command bar is built, and
+finds the command bars from there by walking the XAML tree. The configured
+buttons are then inserted and the visibility / spacing settings are applied. The
+mod also listens for the command bar being rebuilt so the buttons stay in place
+across navigation, new tabs and new windows, and it restores the original state
+of any element it touches when disabled.
+
+The active tab's folder and selection are resolved through `IShellWindows` /
+`IShellBrowser`, off the UI thread, so a slow or unresponsive shell can't block
+the command bar.
+
+Notably, the mod does **not** use XAML Diagnostics
+(`InitializeXamlDiagnosticsEx`), since only one XAML diagnostics consumer can be
+active in a process at a time. That makes it compatible with mods and tools
+which do use it, such as **Windows 11 File Explorer Styler**, ExplorerBlurMica
+and TranslucentTB.
+
+File Explorer windows which are already open when the mod is enabled are
+handled too, but if the buttons don't show up in one of them right away, opening
+a new tab or navigating to another folder makes them appear.
 */
 // ==/WindhawkModReadme==
 
