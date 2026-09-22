@@ -89,6 +89,7 @@ Instead of an executable, the **Command** field can run built-in File Explorer a
 
 * `internal:TogglePreview` - toggles the Preview pane.
 * `internal:ToggleDetails` - toggles the Details pane.
+* `internal:OpenWith` - opens the native Windows "How do you want to open this file?" application chooser dialog for the selected file.
 * `internal:FolderOptions` - opens the classic Folder Options control panel dialog.
 
 ## Icons
@@ -229,7 +230,7 @@ a new tab or navigating to another folder makes them appear.
     - command: internal:FolderOptions
       $name: Command
       $description: >-
-        The executable to run, or an internal command (internal:TogglePreview, internal:ToggleDetails, internal:FolderOptions).
+        The executable to run, or an internal command (internal:TogglePreview, internal:ToggleDetails, internal:FolderOptions, internal:OpenWith).
     - parameters: ""
       $name: Parameters
       $description: >-
@@ -1366,6 +1367,26 @@ void OnActionInvoked(mux::FrameworkElement const& elementForWindow, ActionItem c
         RunShellWorkOnWorkerThread([]() {
             ShellExecuteW(nullptr, L"open", L"control.exe", L"folders", nullptr, SW_SHOWNORMAL);
         });
+        return;
+    }
+
+    if (item.command == L"internal:OpenWith") {
+        ExplorerContext context = GetExplorerContext(hWnd);
+        // Guard: only execute if an item is selected and it is a file, not a directory
+        if (!context.selectedPath.empty() && !DirectoryExists(context.selectedPath)) {
+            std::wstring targetPath = context.selectedPath;
+            RunShellWorkOnWorkerThread([hWnd, targetPath]() {
+                HMODULE hShell32 = GetModuleHandleW(L"shell32.dll");
+                if (!hShell32) hShell32 = LoadLibraryW(L"shell32.dll");
+                if (hShell32) {
+                    typedef void(WINAPI *OpenAs_RunDLL_t)(HWND, HINSTANCE, LPCWSTR, int);
+                    auto pOpenAs = (OpenAs_RunDLL_t)GetProcAddress(hShell32, "OpenAs_RunDLLW");
+                    if (pOpenAs) {
+                        pOpenAs(hWnd, nullptr, targetPath.c_str(), SW_SHOWNORMAL);
+                    }
+                }
+            });
+        }
         return;
     }
 
