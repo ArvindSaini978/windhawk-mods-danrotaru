@@ -8,9 +8,11 @@
 // @homepage        https://dan13.me/
 // @include         explorer.exe
 // @architecture    x86-64
-// @compilerOptions -ladvapi32 -lgdi32 -lole32 -loleaut32 -lruntimeobject -lshell32 -lshlwapi -luuid 
+// @compilerOptions -ladvapi32 -lgdi32 -lole32 -loleaut32 -lruntimeobject -lshell32 -lshlwapi -luuid
 // @license         MIT
 // ==/WindhawkMod==
+
+// clang-format off
 
 // ==WindhawkModReadme==
 /*
@@ -490,8 +492,11 @@ a new tab or navigating to another folder makes them appear.
 */
 // ==/WindhawkModSettings==
 
-#include <windows.h>
+// clang-format on
+
 #include <windhawk_utils.h>
+#include <windows.h>
+
 
 #include <exdisp.h>
 #include <servprov.h>
@@ -522,10 +527,16 @@ a new tab or navigating to another folder makes them appear.
 std::atomic<bool> g_unloading;
 
 static constexpr CLSID kCLSID_ShellWindows = {
-    0x9ba05972, 0xf6a8, 0x11cf, {0xa4, 0x42, 0x00, 0xa0, 0xc9, 0x0a, 0x8f, 0x39}};
+    0x9ba05972,
+    0xf6a8,
+    0x11cf,
+    {0xa4, 0x42, 0x00, 0xa0, 0xc9, 0x0a, 0x8f, 0x39}};
 
 static constexpr GUID kSID_STopLevelBrowser = {
-    0x4c96be40, 0x915c, 0x11cf, {0x99, 0xd3, 0x00, 0xaa, 0x00, 0x4a, 0xe8, 0x37}};
+    0x4c96be40,
+    0x915c,
+    0x11cf,
+    {0x99, 0xd3, 0x00, 0xaa, 0x00, 0x4a, 0xe8, 0x37}};
 
 struct ActionItem {
     std::wstring name;
@@ -601,6 +612,8 @@ struct {
     ContextMenuItemSettings contextMenuItem;
 } g_settings;
 
+// clang-format off
+
 #pragma region winrt_hpp
 #include <Unknwn.h>
 #undef GetCurrentTime
@@ -629,6 +642,8 @@ namespace muxc = winrt::Microsoft::UI::Xaml::Controls;
 namespace muxd = winrt::Microsoft::UI::Xaml::Documents;
 namespace muxm = winrt::Microsoft::UI::Xaml::Media;
 #pragma endregion
+
+// clang-format on
 
 constexpr PCWSTR kButtonNamePrefix = L"WindhawkActionButton";
 constexpr PCWSTR kNewPlusButtonName = L"WindhawkNewPlusButton";
@@ -661,8 +676,10 @@ void TrackRevoker(T const& source, Revoker&& revoker) {
         g_revokersPruneAt = std::max(kRevokersPruneMin, g_revokers.size() * 2);
     }
 
-    auto held = std::make_shared<std::decay_t<Revoker>>(std::forward<Revoker>(revoker));
-    g_revokers.push_back({winrt::weak_ref<wf::IInspectable>{source}, [held]() { held->revoke(); }});
+    auto held =
+        std::make_shared<std::decay_t<Revoker>>(std::forward<Revoker>(revoker));
+    g_revokers.push_back({winrt::weak_ref<wf::IInspectable>{source},
+                          [held]() { held->revoke(); }});
 }
 
 void RevokeHandlersForCurrentThread() {
@@ -722,21 +739,26 @@ ManagedElement& GetManagedElement(mux::UIElement const& element) {
 }
 
 std::wstring ExpandEnvVars(std::wstring const& str) {
-    if (str.empty()) return str;
+    if (str.empty())
+        return str;
     WCHAR buffer[MAX_PATH * 2];
-    DWORD length = ExpandEnvironmentStringsW(str.c_str(), buffer, ARRAYSIZE(buffer));
-    if (length == 0 || length > ARRAYSIZE(buffer)) return str;
+    DWORD length =
+        ExpandEnvironmentStringsW(str.c_str(), buffer, ARRAYSIZE(buffer));
+    if (length == 0 || length > ARRAYSIZE(buffer))
+        return str;
     return buffer;
 }
 
 std::wstring ToLower(std::wstring str) {
-    for (auto& c : str) c = towlower(c);
+    for (auto& c : str)
+        c = towlower(c);
     return str;
 }
 
 std::wstring TrimQuotesAndSpaces(std::wstring str) {
     size_t first = str.find_first_not_of(L" \t");
-    if (first == std::wstring::npos) return std::wstring();
+    if (first == std::wstring::npos)
+        return std::wstring();
     size_t last = str.find_last_not_of(L" \t");
     str = str.substr(first, last - first + 1);
     if (str.size() >= 2 && str.front() == L'"' && str.back() == L'"') {
@@ -755,27 +777,35 @@ std::wstring JoinPath(std::wstring const& folder, std::wstring const& name) {
 
 bool DirectoryExists(std::wstring const& path) {
     DWORD attributes = GetFileAttributesW(path.c_str());
-    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
+    return attributes != INVALID_FILE_ATTRIBUTES &&
+           (attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 std::wstring ResolveCommandPath(std::wstring const& command) {
     std::wstring expanded = ExpandEnvVars(command);
-    if (expanded.find(L'\\') != std::wstring::npos) return expanded;
+    if (expanded.find(L'\\') != std::wstring::npos)
+        return expanded;
 
     WCHAR resolved[MAX_PATH];
-    if (SearchPathW(nullptr, expanded.c_str(), L".exe", ARRAYSIZE(resolved), resolved, nullptr)) {
+    if (SearchPathW(nullptr, expanded.c_str(), L".exe", ARRAYSIZE(resolved),
+                    resolved, nullptr)) {
         return resolved;
     }
 
-    std::wstring keyPath = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\" + expanded;
-    if (!ToLower(expanded).ends_with(L".exe")) keyPath += L".exe";
+    std::wstring keyPath =
+        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\" + expanded;
+    if (!ToLower(expanded).ends_with(L".exe"))
+        keyPath += L".exe";
 
     for (HKEY rootKey : {HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE}) {
         WCHAR buffer[MAX_PATH];
         DWORD size = sizeof(buffer);
-        if (RegGetValueW(rootKey, keyPath.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, buffer, &size) == ERROR_SUCCESS && buffer[0]) {
+        if (RegGetValueW(rootKey, keyPath.c_str(), nullptr, RRF_RT_REG_SZ,
+                         nullptr, buffer, &size) == ERROR_SUCCESS &&
+            buffer[0]) {
             std::wstring appPath = ExpandEnvVars(buffer);
-            if (appPath.size() >= 2 && appPath.front() == L'"' && appPath.back() == L'"') {
+            if (appPath.size() >= 2 && appPath.front() == L'"' &&
+                appPath.back() == L'"') {
                 appPath = appPath.substr(1, appPath.size() - 2);
             }
             return appPath;
@@ -787,12 +817,15 @@ std::wstring ResolveCommandPath(std::wstring const& command) {
 
 class ComApartmentScope {
    public:
-    explicit ComApartmentScope(DWORD coInit) : m_hr(CoInitializeEx(nullptr, coInit)) {}
+    explicit ComApartmentScope(DWORD coInit)
+        : m_hr(CoInitializeEx(nullptr, coInit)) {}
     ~ComApartmentScope() {
-        if (SUCCEEDED(m_hr)) CoUninitialize();
+        if (SUCCEEDED(m_hr))
+            CoUninitialize();
     }
     ComApartmentScope(const ComApartmentScope&) = delete;
     ComApartmentScope& operator=(const ComApartmentScope&) = delete;
+
    private:
     HRESULT m_hr;
 };
@@ -806,7 +839,8 @@ struct ExplorerContext {
 
 winrt::com_ptr<IShellView> GetActiveShellView(HWND hExplorerWnd) {
     winrt::com_ptr<IShellWindows> shellWindows;
-    HRESULT hr = CoCreateInstance(kCLSID_ShellWindows, nullptr, CLSCTX_ALL, IID_PPV_ARGS(shellWindows.put()));
+    HRESULT hr = CoCreateInstance(kCLSID_ShellWindows, nullptr, CLSCTX_ALL,
+                                  IID_PPV_ARGS(shellWindows.put()));
     if (FAILED(hr) || !shellWindows) {
         Wh_Log(L"CoCreateInstance(ShellWindows) failed: %08X", hr);
         return nullptr;
@@ -815,7 +849,10 @@ winrt::com_ptr<IShellView> GetActiveShellView(HWND hExplorerWnd) {
     long count = 0;
     shellWindows->get_Count(&count);
 
-    HWND hActiveTabWnd = hExplorerWnd ? FindWindowExW(hExplorerWnd, nullptr, L"ShellTabWindowClass", nullptr) : nullptr;
+    HWND hActiveTabWnd = hExplorerWnd
+                             ? FindWindowExW(hExplorerWnd, nullptr,
+                                             L"ShellTabWindowClass", nullptr)
+                             : nullptr;
 
     for (long i = 0; i < count; i++) {
         VARIANT index;
@@ -824,31 +861,41 @@ winrt::com_ptr<IShellView> GetActiveShellView(HWND hExplorerWnd) {
         index.lVal = i;
 
         winrt::com_ptr<IDispatch> dispatch;
-        if (FAILED(shellWindows->Item(index, dispatch.put())) || !dispatch) continue;
+        if (FAILED(shellWindows->Item(index, dispatch.put())) || !dispatch)
+            continue;
 
         auto webBrowser = dispatch.try_as<IWebBrowser2>();
-        if (!webBrowser) continue;
+        if (!webBrowser)
+            continue;
 
         SHANDLE_PTR hWndRaw = 0;
-        if (FAILED(webBrowser->get_HWND(&hWndRaw)) || (hExplorerWnd && (HWND)hWndRaw != hExplorerWnd)) continue;
+        if (FAILED(webBrowser->get_HWND(&hWndRaw)) ||
+            (hExplorerWnd && (HWND)hWndRaw != hExplorerWnd))
+            continue;
 
         auto serviceProvider = dispatch.try_as<IServiceProvider>();
-        if (!serviceProvider) continue;
+        if (!serviceProvider)
+            continue;
 
         winrt::com_ptr<IShellBrowser> shellBrowser;
-        if (FAILED(serviceProvider->QueryService(kSID_STopLevelBrowser, IID_PPV_ARGS(shellBrowser.put()))) || !shellBrowser) continue;
+        if (FAILED(serviceProvider->QueryService(
+                kSID_STopLevelBrowser, IID_PPV_ARGS(shellBrowser.put()))) ||
+            !shellBrowser)
+            continue;
 
         HWND hTabWnd = nullptr;
         if (SUCCEEDED(shellBrowser->GetWindow(&hTabWnd)) && hTabWnd) {
             if (hActiveTabWnd) {
-                if (hTabWnd != hActiveTabWnd) continue;
+                if (hTabWnd != hActiveTabWnd)
+                    continue;
             } else if (!IsWindowVisible(hTabWnd)) {
                 continue;
             }
         }
 
         winrt::com_ptr<IShellView> shellView;
-        if (SUCCEEDED(shellBrowser->QueryActiveShellView(shellView.put())) && shellView) {
+        if (SUCCEEDED(shellBrowser->QueryActiveShellView(shellView.put())) &&
+            shellView) {
             return shellView;
         }
     }
@@ -858,9 +905,11 @@ winrt::com_ptr<IShellView> GetActiveShellView(HWND hExplorerWnd) {
 
 bool ShellViewHasSelection(winrt::com_ptr<IShellView> const& shellView) {
     auto folderView = shellView.try_as<IFolderView>();
-    if (!folderView) return false;
+    if (!folderView)
+        return false;
     int count = 0;
-    return SUCCEEDED(folderView->ItemCount(SVGIO_SELECTION, &count)) && count > 0;
+    return SUCCEEDED(folderView->ItemCount(SVGIO_SELECTION, &count)) &&
+           count > 0;
 }
 
 struct FindWindowByClassParam {
@@ -870,22 +919,28 @@ struct FindWindowByClassParam {
 
 HWND FindDescendantWindow(HWND hParentWnd, PCWSTR className) {
     FindWindowByClassParam param{className, nullptr};
-    EnumChildWindows(hParentWnd, [](HWND hWnd, LPARAM lParam) -> BOOL {
-        auto& p = *(FindWindowByClassParam*)lParam;
-        WCHAR buffer[64];
-        if (GetClassNameW(hWnd, buffer, ARRAYSIZE(buffer)) && _wcsicmp(buffer, p.className) == 0) {
-            p.result = hWnd;
-            return FALSE;
-        }
-        return TRUE;
-    }, (LPARAM)&param);
+    EnumChildWindows(
+        hParentWnd,
+        [](HWND hWnd, LPARAM lParam) -> BOOL {
+            auto& p = *(FindWindowByClassParam*)lParam;
+            WCHAR buffer[64];
+            if (GetClassNameW(hWnd, buffer, ARRAYSIZE(buffer)) &&
+                _wcsicmp(buffer, p.className) == 0) {
+                p.result = hWnd;
+                return FALSE;
+            }
+            return TRUE;
+        },
+        (LPARAM)&param);
     return param.result;
 }
 
 HWND FindShellViewWindow(HWND hExplorerWnd) {
-    HWND hTabWnd = FindWindowExW(hExplorerWnd, nullptr, L"ShellTabWindowClass", nullptr);
+    HWND hTabWnd =
+        FindWindowExW(hExplorerWnd, nullptr, L"ShellTabWindowClass", nullptr);
     if (hTabWnd) {
-        if (HWND hViewWnd = FindDescendantWindow(hTabWnd, L"SHELLDLL_DefView")) return hViewWnd;
+        if (HWND hViewWnd = FindDescendantWindow(hTabWnd, L"SHELLDLL_DefView"))
+            return hViewWnd;
     }
     return FindDescendantWindow(hExplorerWnd, L"SHELLDLL_DefView");
 }
@@ -893,17 +948,21 @@ HWND FindShellViewWindow(HWND hExplorerWnd) {
 bool RequestShellViewContextMenu(HWND hExplorerWnd) {
     HWND hViewWnd = FindShellViewWindow(hExplorerWnd);
     if (!hViewWnd) {
-        Wh_Log(L"No shell view window for %08X", (DWORD)(ULONG_PTR)hExplorerWnd);
+        Wh_Log(L"No shell view window for %08X",
+               (DWORD)(ULONG_PTR)hExplorerWnd);
         return false;
     }
-    return PostMessageW(hViewWnd, WM_CONTEXTMENU, (WPARAM)hViewWnd, (LPARAM)-1) != FALSE;
+    return PostMessageW(hViewWnd, WM_CONTEXTMENU, (WPARAM)hViewWnd,
+                        (LPARAM)-1) != FALSE;
 }
 
-winrt::com_ptr<IContextMenu> GetShellContextMenu(HWND hExplorerWnd, bool* isItemMenu) {
+winrt::com_ptr<IContextMenu> GetShellContextMenu(HWND hExplorerWnd,
+                                                 bool* isItemMenu) {
     *isItemMenu = false;
     auto shellView = GetActiveShellView(hExplorerWnd);
     if (!shellView) {
-        Wh_Log(L"No shell view for window %08X", (DWORD)(ULONG_PTR)hExplorerWnd);
+        Wh_Log(L"No shell view for window %08X",
+               (DWORD)(ULONG_PTR)hExplorerWnd);
         return nullptr;
     }
 
@@ -911,7 +970,8 @@ winrt::com_ptr<IContextMenu> GetShellContextMenu(HWND hExplorerWnd, bool* isItem
     UINT viewObject = *isItemMenu ? SVGIO_SELECTION : SVGIO_BACKGROUND;
 
     winrt::com_ptr<IContextMenu> contextMenu;
-    HRESULT hr = shellView->GetItemObject(viewObject, __uuidof(IContextMenu), contextMenu.put_void());
+    HRESULT hr = shellView->GetItemObject(viewObject, __uuidof(IContextMenu),
+                                          contextMenu.put_void());
     if (FAILED(hr) || !contextMenu) {
         Wh_Log(L"GetItemObject(%u) failed: %08X", viewObject, hr);
         return nullptr;
@@ -933,22 +993,32 @@ struct OpenContextMenuScope {
     OpenContextMenuScope& operator=(const OpenContextMenuScope&) = delete;
 };
 
-LRESULT CALLBACK ContextMenuOwnerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK ContextMenuOwnerWndProc(HWND hWnd,
+                                         UINT uMsg,
+                                         WPARAM wParam,
+                                         LPARAM lParam) {
     switch (uMsg) {
         case WM_INITMENUPOPUP:
         case WM_DRAWITEM:
         case WM_MEASUREITEM:
             if (g_trackedContextMenu3) {
                 LRESULT result = 0;
-                if (SUCCEEDED(g_trackedContextMenu3->HandleMenuMsg2(uMsg, wParam, lParam, &result))) return result;
-            } else if (g_trackedContextMenu2 && SUCCEEDED(g_trackedContextMenu2->HandleMenuMsg(uMsg, wParam, lParam))) {
+                if (SUCCEEDED(g_trackedContextMenu3->HandleMenuMsg2(
+                        uMsg, wParam, lParam, &result)))
+                    return result;
+            } else if (g_trackedContextMenu2 &&
+                       SUCCEEDED(g_trackedContextMenu2->HandleMenuMsg(
+                           uMsg, wParam, lParam))) {
                 return uMsg == WM_INITMENUPOPUP ? 0 : TRUE;
             }
             break;
         case WM_MENUCHAR:
             if (g_trackedContextMenu3) {
                 LRESULT result = 0;
-                if (SUCCEEDED(g_trackedContextMenu3->HandleMenuMsg2(uMsg, wParam, lParam, &result)) && result) return result;
+                if (SUCCEEDED(g_trackedContextMenu3->HandleMenuMsg2(
+                        uMsg, wParam, lParam, &result)) &&
+                    result)
+                    return result;
             }
             break;
     }
@@ -957,7 +1027,8 @@ LRESULT CALLBACK ContextMenuOwnerWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LP
 
 HINSTANCE GetCurrentModuleHandle() {
     HINSTANCE hInst = nullptr;
-    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                       (LPCWSTR)&GetCurrentModuleHandle, &hInst);
     return hInst;
 }
@@ -971,7 +1042,8 @@ std::mutex g_contextMenuOwnersMutex;
 std::unordered_map<DWORD, HWND> g_contextMenuOwners;
 
 bool IsContextMenuOwnerWindow(DWORD threadId, HWND hWnd) {
-    if (!IsWindow(hWnd) || GetWindowThreadProcessId(hWnd, nullptr) != threadId) return false;
+    if (!IsWindow(hWnd) || GetWindowThreadProcessId(hWnd, nullptr) != threadId)
+        return false;
     WCHAR className[128];
     return GetClassNameW(hWnd, className, ARRAYSIZE(className)) &&
            _wcsicmp(className, ContextMenuOwnerClassName().c_str()) == 0;
@@ -987,7 +1059,9 @@ void RegisterContextMenuOwnerClass() {
     if (!RegisterClassExW(&wc)) {
         DWORD error = GetLastError();
         Wh_Log(L"RegisterClassEx failed: %u%s", error,
-               error == ERROR_CLASS_ALREADY_EXISTS ? L" - context menu class already exists" : L"");
+               error == ERROR_CLASS_ALREADY_EXISTS
+                   ? L" - context menu class already exists"
+                   : L"");
         return;
     }
     g_contextMenuOwnerClassRegistered = true;
@@ -998,16 +1072,20 @@ HWND EnsureContextMenuOwnerWindow() {
     {
         std::lock_guard<std::mutex> lock(g_contextMenuOwnersMutex);
         auto it = g_contextMenuOwners.find(threadId);
-        if (it != g_contextMenuOwners.end() && IsContextMenuOwnerWindow(threadId, it->second)) {
+        if (it != g_contextMenuOwners.end() &&
+            IsContextMenuOwnerWindow(threadId, it->second)) {
             return it->second;
         }
-        if (it != g_contextMenuOwners.end()) g_contextMenuOwners.erase(it);
+        if (it != g_contextMenuOwners.end())
+            g_contextMenuOwners.erase(it);
     }
 
-    if (!g_contextMenuOwnerClassRegistered) return nullptr;
+    if (!g_contextMenuOwnerClassRegistered)
+        return nullptr;
 
     HWND hWnd = CreateWindowExW(0, ContextMenuOwnerClassName().c_str(), nullptr,
-                                0, 0, 0, 0, 0, nullptr, nullptr, GetCurrentModuleHandle(), nullptr);
+                                0, 0, 0, 0, 0, nullptr, nullptr,
+                                GetCurrentModuleHandle(), nullptr);
     if (!hWnd) {
         Wh_Log(L"CreateWindowEx failed: %u", GetLastError());
         return nullptr;
@@ -1023,30 +1101,38 @@ void DismissOpenContextMenus() {
         {
             std::lock_guard<std::mutex> lock(g_contextMenuOwnersMutex);
             for (auto const& [threadId, hWnd] : g_contextMenuOwners) {
-                if (IsContextMenuOwnerWindow(threadId, hWnd)) PostMessageW(hWnd, WM_CANCELMODE, 0, 0);
+                if (IsContextMenuOwnerWindow(threadId, hWnd))
+                    PostMessageW(hWnd, WM_CANCELMODE, 0, 0);
             }
         }
         if (i > 0 && i % 100 == 0) {
-            Wh_Log(L"Still waiting for %d shell context menu(s)", g_openContextMenuCount.load());
+            Wh_Log(L"Still waiting for %d shell context menu(s)",
+                   g_openContextMenuCount.load());
         }
         Sleep(10);
     }
 }
 
 void DestroyContextMenuOwnerWindowForCurrentThread() {
-    if (g_contextMenuIsOpen) return;
+    if (g_contextMenuIsOpen)
+        return;
     HWND hWnd = nullptr;
     {
         std::lock_guard<std::mutex> lock(g_contextMenuOwnersMutex);
         auto it = g_contextMenuOwners.find(GetCurrentThreadId());
-        if (it == g_contextMenuOwners.end()) return;
+        if (it == g_contextMenuOwners.end())
+            return;
         hWnd = it->second;
         g_contextMenuOwners.erase(it);
     }
     DestroyWindow(hWnd);
 }
 
-void InvokeShellContextMenuCommand(winrt::com_ptr<IContextMenu> const& contextMenu, UINT cmdId, HWND hExplorerWnd, POINT point) {
+void InvokeShellContextMenuCommand(
+    winrt::com_ptr<IContextMenu> const& contextMenu,
+    UINT cmdId,
+    HWND hExplorerWnd,
+    POINT point) {
     CMINVOKECOMMANDINFOEX info{};
     info.cbSize = sizeof(info);
     info.fMask = CMIC_MASK_UNICODE | CMIC_MASK_PTINVOKE;
@@ -1055,14 +1141,18 @@ void InvokeShellContextMenuCommand(winrt::com_ptr<IContextMenu> const& contextMe
     info.lpVerbW = (LPCWSTR)(UINT_PTR)(cmdId - kContextMenuFirstCmdId);
     info.nShow = SW_SHOWNORMAL;
     info.ptInvoke = point;
-    if (GetKeyState(VK_CONTROL) & 0x8000) info.fMask |= CMIC_MASK_CONTROL_DOWN;
-    if (GetKeyState(VK_SHIFT) & 0x8000) info.fMask |= CMIC_MASK_SHIFT_DOWN;
+    if (GetKeyState(VK_CONTROL) & 0x8000)
+        info.fMask |= CMIC_MASK_CONTROL_DOWN;
+    if (GetKeyState(VK_SHIFT) & 0x8000)
+        info.fMask |= CMIC_MASK_SHIFT_DOWN;
     HRESULT hr = contextMenu->InvokeCommand((CMINVOKECOMMANDINFO*)&info);
-    if (FAILED(hr)) Wh_Log(L"InvokeCommand failed: %08X", hr);
+    if (FAILED(hr))
+        Wh_Log(L"InvokeCommand failed: %08X", hr);
 }
 
 void ShowShellContextMenu(HWND hExplorerWnd, POINT point) {
-    if (g_contextMenuIsOpen || g_unloading) return;
+    if (g_contextMenuIsOpen || g_unloading)
+        return;
     OpenContextMenuScope openScope;
 
     bool useNilesoftShell;
@@ -1071,24 +1161,31 @@ void ShowShellContextMenu(HWND hExplorerWnd, POINT point) {
         useNilesoftShell = g_settings.contextMenuItem.useNilesoftShell;
     }
 
-    if (useNilesoftShell && RequestShellViewContextMenu(hExplorerWnd)) return;
+    if (useNilesoftShell && RequestShellViewContextMenu(hExplorerWnd))
+        return;
 
     HWND hOwnerWnd = EnsureContextMenuOwnerWindow();
-    if (!hOwnerWnd) return;
+    if (!hOwnerWnd)
+        return;
 
-    ComApartmentScope comScope(COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    ComApartmentScope comScope(COINIT_APARTMENTTHREADED |
+                               COINIT_DISABLE_OLE1DDE);
 
     bool isItemMenu = false;
     auto contextMenu = GetShellContextMenu(hExplorerWnd, &isItemMenu);
-    if (!contextMenu) return;
+    if (!contextMenu)
+        return;
 
     HMENU hMenu = CreatePopupMenu();
-    if (!hMenu) return;
+    if (!hMenu)
+        return;
 
     UINT flags = isItemMenu ? CMF_CANRENAME : CMF_NORMAL;
-    if (GetKeyState(VK_SHIFT) & 0x8000) flags |= CMF_EXTENDEDVERBS;
+    if (GetKeyState(VK_SHIFT) & 0x8000)
+        flags |= CMF_EXTENDEDVERBS;
 
-    HRESULT hr = contextMenu->QueryContextMenu(hMenu, 0, kContextMenuFirstCmdId, kContextMenuLastCmdId, flags);
+    HRESULT hr = contextMenu->QueryContextMenu(hMenu, 0, kContextMenuFirstCmdId,
+                                               kContextMenuLastCmdId, flags);
     if (FAILED(hr)) {
         Wh_Log(L"QueryContextMenu failed: %08X", hr);
         DestroyMenu(hMenu);
@@ -1106,14 +1203,16 @@ void ShowShellContextMenu(HWND hExplorerWnd, POINT point) {
     g_trackedContextMenu3 = contextMenu3.get();
     g_contextMenuIsOpen = true;
 
-    UINT cmdId = (UINT)TrackPopupMenuEx(hMenu, TPM_RETURNCMD | TPM_LEFTBUTTON | TPM_RIGHTBUTTON | TPM_LEFTALIGN,
-                                        point.x, point.y, hOwnerWnd, nullptr);
+    UINT cmdId = (UINT)TrackPopupMenuEx(
+        hMenu, TPM_RETURNCMD | TPM_LEFTBUTTON | TPM_RIGHTBUTTON | TPM_LEFTALIGN,
+        point.x, point.y, hOwnerWnd, nullptr);
 
     g_contextMenuIsOpen = false;
     g_trackedContextMenu2 = nullptr;
     g_trackedContextMenu3 = nullptr;
 
-    if (cmdId >= kContextMenuFirstCmdId && cmdId <= kContextMenuLastCmdId && !g_unloading) {
+    if (cmdId >= kContextMenuFirstCmdId && cmdId <= kContextMenuLastCmdId &&
+        !g_unloading) {
         InvokeShellContextMenuCommand(contextMenu, cmdId, hExplorerWnd, point);
     }
 
@@ -1123,15 +1222,19 @@ void ShowShellContextMenu(HWND hExplorerWnd, POINT point) {
 ExplorerContext GetExplorerContext(HWND hExplorerWnd) {
     ExplorerContext result;
     result.shellView = GetActiveShellView(hExplorerWnd);
-    if (!result.shellView) return result;
+    if (!result.shellView)
+        return result;
 
     if (auto folderView = result.shellView.try_as<IFolderView>()) {
         winrt::com_ptr<IPersistFolder2> persistFolder;
         LPITEMIDLIST pidl = nullptr;
-        if (SUCCEEDED(folderView->GetFolder(IID_PPV_ARGS(persistFolder.put()))) && persistFolder &&
-            SUCCEEDED(persistFolder->GetCurFolder(&pidl)) && pidl) {
+        if (SUCCEEDED(
+                folderView->GetFolder(IID_PPV_ARGS(persistFolder.put()))) &&
+            persistFolder && SUCCEEDED(persistFolder->GetCurFolder(&pidl)) &&
+            pidl) {
             WCHAR path[MAX_PATH];
-            if (SHGetPathFromIDListEx(pidl, path, ARRAYSIZE(path), GPFIDL_DEFAULT)) {
+            if (SHGetPathFromIDListEx(pidl, path, ARRAYSIZE(path),
+                                      GPFIDL_DEFAULT)) {
                 result.folderPath = path;
             }
             CoTaskMemFree(pidl);
@@ -1139,15 +1242,21 @@ ExplorerContext GetExplorerContext(HWND hExplorerWnd) {
     }
 
     winrt::com_ptr<IShellItemArray> selection;
-    if (SUCCEEDED(result.shellView->GetItemObject(SVGIO_SELECTION, IID_PPV_ARGS(selection.put()))) && selection) {
+    if (SUCCEEDED(result.shellView->GetItemObject(
+            SVGIO_SELECTION, IID_PPV_ARGS(selection.put()))) &&
+        selection) {
         DWORD count = 0;
         selection->GetCount(&count);
         for (DWORD i = 0; i < count; i++) {
             winrt::com_ptr<IShellItem> shellItem;
-            if (SUCCEEDED(selection->GetItemAt(i, shellItem.put())) && shellItem) {
+            if (SUCCEEDED(selection->GetItemAt(i, shellItem.put())) &&
+                shellItem) {
                 PWSTR itemPath = nullptr;
-                if (SUCCEEDED(shellItem->GetDisplayName(SIGDN_FILESYSPATH, &itemPath)) && itemPath) {
-                    if (result.selectedPath.empty()) result.selectedPath = itemPath;
+                if (SUCCEEDED(shellItem->GetDisplayName(SIGDN_FILESYSPATH,
+                                                        &itemPath)) &&
+                    itemPath) {
+                    if (result.selectedPath.empty())
+                        result.selectedPath = itemPath;
                     result.allSelectedPaths.push_back(itemPath);
                     CoTaskMemFree(itemPath);
                 }
@@ -1158,14 +1267,20 @@ ExplorerContext GetExplorerContext(HWND hExplorerWnd) {
     return result;
 }
 
-bool ReplacePlaceholder(std::wstring& parameters, std::wstring_view placeholder, std::wstring const& value) {
+bool ReplacePlaceholder(std::wstring& parameters,
+                        std::wstring_view placeholder,
+                        std::wstring const& value) {
     size_t pos = parameters.find(placeholder);
-    if (pos == std::wstring::npos) return true;
-    if (value.empty()) return false;
+    if (pos == std::wstring::npos)
+        return true;
+    if (value.empty())
+        return false;
 
     while (pos != std::wstring::npos) {
         std::wstring replacement = value;
-        if (replacement.back() == L'\\' && pos + placeholder.size() < parameters.size() && parameters[pos + placeholder.size()] == L'"') {
+        if (replacement.back() == L'\\' &&
+            pos + placeholder.size() < parameters.size() &&
+            parameters[pos + placeholder.size()] == L'"') {
             replacement += L'\\';
         }
         parameters.replace(pos, placeholder.size(), replacement);
@@ -1178,17 +1293,22 @@ std::wstring FormatSelectedItemsQuoted(std::vector<std::wstring> const& paths) {
     std::wstring formatted;
     for (auto const& p : paths) {
         std::wstring safe = p;
-        if (!safe.empty() && safe.back() == L'\\' && safe.size() > 3) safe += L'\\';
+        if (!safe.empty() && safe.back() == L'\\' && safe.size() > 3)
+            safe += L'\\';
         formatted += L"\"" + safe + L"\" ";
     }
-    if (!formatted.empty()) formatted.pop_back();
+    if (!formatted.empty())
+        formatted.pop_back();
     return formatted;
 }
 
-std::wstring BuildParameters(std::wstring parameters, ExplorerContext const& context) {
+std::wstring BuildParameters(std::wstring parameters,
+                             ExplorerContext const& context) {
     if (parameters.find(L"%sel%") != std::wstring::npos) {
-        if (context.allSelectedPaths.empty()) return std::wstring();
-        std::wstring formatted = FormatSelectedItemsQuoted(context.allSelectedPaths);
+        if (context.allSelectedPaths.empty())
+            return std::wstring();
+        std::wstring formatted =
+            FormatSelectedItemsQuoted(context.allSelectedPaths);
 
         size_t quotedPos = parameters.find(L"\"%sel%\"");
         if (quotedPos != std::wstring::npos) {
@@ -1208,24 +1328,31 @@ std::wstring BuildParameters(std::wstring parameters, ExplorerContext const& con
     return parameters;
 }
 
-void ExecuteProcess(std::wstring const& command, std::wstring const& parameters, std::wstring const& workingDir) {
+void ExecuteProcess(std::wstring const& command,
+                    std::wstring const& parameters,
+                    std::wstring const& workingDir) {
     bool isPath = command.find(L'\\') != std::wstring::npos;
     SHELLEXECUTEINFOW execInfo{};
     execInfo.cbSize = sizeof(execInfo);
     execInfo.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOASYNC;
     execInfo.lpFile = command.c_str();
     execInfo.lpParameters = parameters.empty() ? nullptr : parameters.c_str();
-    execInfo.lpDirectory = (isPath && !workingDir.empty()) ? workingDir.c_str() : nullptr;
+    execInfo.lpDirectory =
+        (isPath && !workingDir.empty()) ? workingDir.c_str() : nullptr;
     execInfo.nShow = SW_SHOWNORMAL;
 
     if (!ShellExecuteExW(&execInfo)) {
-        Wh_Log(L"ShellExecuteExW failed for %s: %u", command.c_str(), GetLastError());
+        Wh_Log(L"ShellExecuteExW failed for %s: %u", command.c_str(),
+               GetLastError());
     }
 }
 
-void LaunchItemForWindow(HWND hExplorerWnd, ActionItem const& item, ExplorerContext const& capturedContext) {
+void LaunchItemForWindow(HWND hExplorerWnd,
+                         ActionItem const& item,
+                         ExplorerContext const& capturedContext) {
     std::wstring command = ResolveCommandPath(item.command);
-    Wh_Log(L"Launching %s for window %08X, path: %s", item.command.c_str(), (DWORD)(ULONG_PTR)hExplorerWnd, capturedContext.folderPath.c_str());
+    Wh_Log(L"Launching %s for window %08X, path: %s", item.command.c_str(),
+           (DWORD)(ULONG_PTR)hExplorerWnd, capturedContext.folderPath.c_str());
 
     // %sel_each%: run an individual process instance per selected item
     if (item.parameters.find(L"%sel_each%") != std::wstring::npos) {
@@ -1242,8 +1369,10 @@ void LaunchItemForWindow(HWND hExplorerWnd, ActionItem const& item, ExplorerCont
         for (const auto& path : capturedContext.allSelectedPaths) {
             std::wstring param = item.parameters;
             std::wstring safePath = path;
-            if (!safePath.empty() && safePath.back() == L'\\' && safePath.size() > 3) {
-                safePath += L'\\'; // Escape trailing backslash before closing quote
+            if (!safePath.empty() && safePath.back() == L'\\' &&
+                safePath.size() > 3) {
+                safePath +=
+                    L'\\';  // Escape trailing backslash before closing quote
             }
 
             // Replace quoted form first to avoid nested double-quotes
@@ -1300,8 +1429,10 @@ void RunShellWorkOnWorkerThread(std::function<void()> work) {
     HANDLE thread = CreateThread(
         nullptr, 0,
         [](LPVOID lpParam) -> DWORD {
-            std::unique_ptr<std::function<void()>> work(reinterpret_cast<std::function<void()>*>(lpParam));
-            ComApartmentScope comScope(COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+            std::unique_ptr<std::function<void()>> work(
+                reinterpret_cast<std::function<void()>*>(lpParam));
+            ComApartmentScope comScope(COINIT_APARTMENTTHREADED |
+                                       COINIT_DISABLE_OLE1DDE);
             try {
                 (*work)();
             } catch (...) {
@@ -1327,68 +1458,97 @@ HWND GetExplorerWindowForElement(mux::FrameworkElement const& element) {
             }
         }
     } catch (...) {
-        Wh_Log(L"Failed to get window from XamlRoot: %08X", winrt::to_hresult().value);
+        Wh_Log(L"Failed to get window from XamlRoot: %08X",
+               winrt::to_hresult().value);
     }
 
-    if (!hWnd) hWnd = GetActiveWindow();
+    if (!hWnd)
+        hWnd = GetActiveWindow();
     if (!hWnd) {
         HWND hForegroundWnd = GetForegroundWindow();
         DWORD processId = 0;
-        if (hForegroundWnd && GetWindowThreadProcessId(hForegroundWnd, &processId) && processId == GetCurrentProcessId()) {
+        if (hForegroundWnd &&
+            GetWindowThreadProcessId(hForegroundWnd, &processId) &&
+            processId == GetCurrentProcessId()) {
             hWnd = hForegroundWnd;
         }
     }
-    if (hWnd) hWnd = GetAncestor(hWnd, GA_ROOT);
+    if (hWnd)
+        hWnd = GetAncestor(hWnd, GA_ROOT);
     return hWnd;
 }
 
-void OnActionInvoked(mux::FrameworkElement const& elementForWindow, ActionItem const& item) {
-    if (item.command.empty() || g_unloading) return;
+void OnActionInvoked(mux::FrameworkElement const& elementForWindow,
+                     ActionItem const& item) {
+    if (item.command.empty() || g_unloading)
+        return;
 
     HWND hWnd = GetExplorerWindowForElement(elementForWindow);
 
     if (item.command == L"internal:TogglePreview") {
         INPUT inputs[4] = {};
-        inputs[0].type = INPUT_KEYBOARD; inputs[0].ki.wVk = VK_MENU;
-        inputs[1].type = INPUT_KEYBOARD; inputs[1].ki.wVk = 'P';
-        inputs[2].type = INPUT_KEYBOARD; inputs[2].ki.wVk = 'P';     inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
-        inputs[3].type = INPUT_KEYBOARD; inputs[3].ki.wVk = VK_MENU; inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[0].type = INPUT_KEYBOARD;
+        inputs[0].ki.wVk = VK_MENU;
+        inputs[1].type = INPUT_KEYBOARD;
+        inputs[1].ki.wVk = 'P';
+        inputs[2].type = INPUT_KEYBOARD;
+        inputs[2].ki.wVk = 'P';
+        inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[3].type = INPUT_KEYBOARD;
+        inputs[3].ki.wVk = VK_MENU;
+        inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
         SendInput(4, inputs, sizeof(INPUT));
         return;
     }
 
     if (item.command == L"internal:ToggleDetails") {
         INPUT inputs[6] = {};
-        inputs[0].type = INPUT_KEYBOARD; inputs[0].ki.wVk = VK_MENU;
-        inputs[1].type = INPUT_KEYBOARD; inputs[1].ki.wVk = VK_SHIFT;
-        inputs[2].type = INPUT_KEYBOARD; inputs[2].ki.wVk = 'P';
-        inputs[3].type = INPUT_KEYBOARD; inputs[3].ki.wVk = 'P';      inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
-        inputs[4].type = INPUT_KEYBOARD; inputs[4].ki.wVk = VK_SHIFT; inputs[4].ki.dwFlags = KEYEVENTF_KEYUP;
-        inputs[5].type = INPUT_KEYBOARD; inputs[5].ki.wVk = VK_MENU;  inputs[5].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[0].type = INPUT_KEYBOARD;
+        inputs[0].ki.wVk = VK_MENU;
+        inputs[1].type = INPUT_KEYBOARD;
+        inputs[1].ki.wVk = VK_SHIFT;
+        inputs[2].type = INPUT_KEYBOARD;
+        inputs[2].ki.wVk = 'P';
+        inputs[3].type = INPUT_KEYBOARD;
+        inputs[3].ki.wVk = 'P';
+        inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[4].type = INPUT_KEYBOARD;
+        inputs[4].ki.wVk = VK_SHIFT;
+        inputs[4].ki.dwFlags = KEYEVENTF_KEYUP;
+        inputs[5].type = INPUT_KEYBOARD;
+        inputs[5].ki.wVk = VK_MENU;
+        inputs[5].ki.dwFlags = KEYEVENTF_KEYUP;
         SendInput(6, inputs, sizeof(INPUT));
         return;
     }
 
     if (item.command == L"internal:FolderOptions") {
         RunShellWorkOnWorkerThread([]() {
-            ShellExecuteW(nullptr, L"open", L"control.exe", L"folders", nullptr, SW_SHOWNORMAL);
+            ShellExecuteW(nullptr, L"open", L"control.exe", L"folders", nullptr,
+                          SW_SHOWNORMAL);
         });
         return;
     }
 
     if (item.command == L"internal:OpenWith") {
         ExplorerContext context = GetExplorerContext(hWnd);
-        // Guard: only execute if an item is selected and it is a file, not a directory
-        if (!context.selectedPath.empty() && !DirectoryExists(context.selectedPath)) {
+        // Guard: only execute if an item is selected and it is a file, not a
+        // directory
+        if (!context.selectedPath.empty() &&
+            !DirectoryExists(context.selectedPath)) {
             std::wstring targetPath = context.selectedPath;
             RunShellWorkOnWorkerThread([hWnd, targetPath]() {
                 HMODULE hShell32 = GetModuleHandleW(L"shell32.dll");
-                if (!hShell32) hShell32 = LoadLibraryW(L"shell32.dll");
+                if (!hShell32)
+                    hShell32 = LoadLibraryW(L"shell32.dll");
                 if (hShell32) {
-                    typedef void(WINAPI *OpenAs_RunDLL_t)(HWND, HINSTANCE, LPCWSTR, int);
-                    auto pOpenAs = (OpenAs_RunDLL_t)GetProcAddress(hShell32, "OpenAs_RunDLLW");
+                    typedef void(WINAPI * OpenAs_RunDLL_t)(HWND, HINSTANCE,
+                                                           LPCWSTR, int);
+                    auto pOpenAs = (OpenAs_RunDLL_t)GetProcAddress(
+                        hShell32, "OpenAs_RunDLLW");
                     if (pOpenAs) {
-                        pOpenAs(hWnd, nullptr, targetPath.c_str(), SW_SHOWNORMAL);
+                        pOpenAs(hWnd, nullptr, targetPath.c_str(),
+                                SW_SHOWNORMAL);
                     }
                 }
             });
@@ -1398,9 +1558,8 @@ void OnActionInvoked(mux::FrameworkElement const& elementForWindow, ActionItem c
 
     ExplorerContext context = GetExplorerContext(hWnd);
 
-    RunShellWorkOnWorkerThread([hWnd, item, context]() {
-        LaunchItemForWindow(hWnd, item, context);
-    });
+    RunShellWorkOnWorkerThread(
+        [hWnd, item, context]() { LaunchItemForWindow(hWnd, item, context); });
 }
 
 std::wstring GetPowerToysNewPlusFolder() {
@@ -1412,38 +1571,48 @@ std::wstring DefaultTemplatesFolder() {
 }
 
 std::wstring ReadFileAsWideString(std::wstring const& path) {
-    HANDLE hFile = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
-                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (hFile == INVALID_HANDLE_VALUE) return std::wstring();
+    HANDLE hFile =
+        CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hFile == INVALID_HANDLE_VALUE)
+        return std::wstring();
 
     LARGE_INTEGER size{};
-    if (!GetFileSizeEx(hFile, &size) || size.QuadPart <= 0 || size.QuadPart > 1024 * 1024) {
+    if (!GetFileSizeEx(hFile, &size) || size.QuadPart <= 0 ||
+        size.QuadPart > 1024 * 1024) {
         CloseHandle(hFile);
         return std::wstring();
     }
 
     std::string bytes((size_t)size.QuadPart, '\0');
     DWORD bytesRead = 0;
-    BOOL succeeded = ReadFile(hFile, bytes.data(), (DWORD)bytes.size(), &bytesRead, nullptr);
+    BOOL succeeded =
+        ReadFile(hFile, bytes.data(), (DWORD)bytes.size(), &bytesRead, nullptr);
     CloseHandle(hFile);
-    if (!succeeded) return std::wstring();
+    if (!succeeded)
+        return std::wstring();
 
     bytes.resize(bytesRead);
-    if (bytes.size() >= 3 && (unsigned char)bytes[0] == 0xEF && (unsigned char)bytes[1] == 0xBB && (unsigned char)bytes[2] == 0xBF) {
+    if (bytes.size() >= 3 && (unsigned char)bytes[0] == 0xEF &&
+        (unsigned char)bytes[1] == 0xBB && (unsigned char)bytes[2] == 0xBF) {
         bytes.erase(0, 3);
     }
 
-    int length = MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(), nullptr, 0);
-    if (length <= 0) return std::wstring();
+    int length = MultiByteToWideChar(CP_UTF8, 0, bytes.data(),
+                                     (int)bytes.size(), nullptr, 0);
+    if (length <= 0)
+        return std::wstring();
 
     std::wstring result((size_t)length, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(), result.data(), length);
+    MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(),
+                        result.data(), length);
     return result;
 }
 
 wdj::IJsonValue FindNewPlusSetting(wdj::JsonObject const& root, PCWSTR name) {
     wdj::JsonObject properties = root;
-    if (auto nested = root.TryLookup(L"properties"); nested && nested.ValueType() == wdj::JsonValueType::Object) {
+    if (auto nested = root.TryLookup(L"properties");
+        nested && nested.ValueType() == wdj::JsonValueType::Object) {
         properties = nested.GetObject();
     }
     auto value = properties.TryLookup(name);
@@ -1462,8 +1631,10 @@ struct PowerToysConfig {
 
 PowerToysConfig ReadPowerToysConfig() {
     PowerToysConfig config;
-    std::wstring json = ReadFileAsWideString(JoinPath(GetPowerToysNewPlusFolder(), L"settings.json"));
-    if (json.empty()) return config;
+    std::wstring json = ReadFileAsWideString(
+        JoinPath(GetPowerToysNewPlusFolder(), L"settings.json"));
+    if (json.empty())
+        return config;
 
     wdj::JsonObject root{nullptr};
     if (!wdj::JsonObject::TryParse(json, root)) {
@@ -1473,28 +1644,39 @@ PowerToysConfig ReadPowerToysConfig() {
 
     auto readBool = [&root](PCWSTR name, bool fallback) {
         auto value = FindNewPlusSetting(root, name);
-        if (!value) return fallback;
+        if (!value)
+            return fallback;
         switch (value.ValueType()) {
-            case wdj::JsonValueType::Boolean: return value.GetBoolean();
-            case wdj::JsonValueType::Number: return value.GetNumber() != 0;
+            case wdj::JsonValueType::Boolean:
+                return value.GetBoolean();
+            case wdj::JsonValueType::Number:
+                return value.GetNumber() != 0;
             case wdj::JsonValueType::String: {
                 std::wstring text = ToLower(std::wstring(value.GetString()));
-                if (text == L"true" || text == L"1") return true;
-                if (text == L"false" || text == L"0") return false;
+                if (text == L"true" || text == L"1")
+                    return true;
+                if (text == L"false" || text == L"0")
+                    return false;
                 return fallback;
             }
-            default: return fallback;
+            default:
+                return fallback;
         }
     };
 
     if (auto templateLocation = FindNewPlusSetting(root, L"TemplateLocation");
-        templateLocation && templateLocation.ValueType() == wdj::JsonValueType::String) {
-        config.templateFolder = TrimQuotesAndSpaces(std::wstring(templateLocation.GetString()));
+        templateLocation &&
+        templateLocation.ValueType() == wdj::JsonValueType::String) {
+        config.templateFolder =
+            TrimQuotesAndSpaces(std::wstring(templateLocation.GetString()));
     }
 
-    config.hideFileExtension = readBool(L"HideFileExtension", config.hideFileExtension);
-    config.hideStartingDigits = readBool(L"HideStartingDigits", config.hideStartingDigits);
-    config.replaceVariables = readBool(L"ReplaceVariables", config.replaceVariables);
+    config.hideFileExtension =
+        readBool(L"HideFileExtension", config.hideFileExtension);
+    config.hideStartingDigits =
+        readBool(L"HideStartingDigits", config.hideStartingDigits);
+    config.replaceVariables =
+        readBool(L"ReplaceVariables", config.replaceVariables);
     return config;
 }
 
@@ -1514,12 +1696,16 @@ EffectiveConfig GetEffectiveConfig() {
         std::lock_guard<std::mutex> lock(g_settings.mutex);
         templateFolderSetting = g_settings.newPlus.templateFolder;
         config.showIcons = g_settings.newPlus.showIcons;
-        config.showTemplatesFolderItem = g_settings.newPlus.showTemplatesFolderItem;
+        config.showTemplatesFolderItem =
+            g_settings.newPlus.showTemplatesFolderItem;
     }
 
     PowerToysConfig powerToys = ReadPowerToysConfig();
-    config.templateFolder = ExpandEnvVars(!templateFolderSetting.empty() ? templateFolderSetting :
-                                         (!powerToys.templateFolder.empty() ? powerToys.templateFolder : DefaultTemplatesFolder()));
+    config.templateFolder = ExpandEnvVars(
+        !templateFolderSetting.empty()
+            ? templateFolderSetting
+            : (!powerToys.templateFolder.empty() ? powerToys.templateFolder
+                                                 : DefaultTemplatesFolder()));
     config.hideFileExtension = powerToys.hideFileExtension;
     config.hideStartingDigits = powerToys.hideStartingDigits;
     config.replaceVariables = powerToys.replaceVariables;
@@ -1535,20 +1721,28 @@ struct TemplateEntry {
 
 std::wstring StripStartingDigits(std::wstring const& name) {
     size_t pos = 0;
-    while (pos < name.size() && iswdigit(name[pos])) pos++;
-    if (pos == 0) return name;
-    while (pos < name.size() && wcschr(L" .-_", name[pos])) pos++;
-    if (pos >= name.size()) return name;
+    while (pos < name.size() && iswdigit(name[pos]))
+        pos++;
+    if (pos == 0)
+        return name;
+    while (pos < name.size() && wcschr(L" .-_", name[pos]))
+        pos++;
+    if (pos >= name.size())
+        return name;
     return name.substr(pos);
 }
 
-std::wstring MakeDisplayName(std::wstring const& fileName, bool isDirectory, EffectiveConfig const& config) {
+std::wstring MakeDisplayName(std::wstring const& fileName,
+                             bool isDirectory,
+                             EffectiveConfig const& config) {
     std::wstring name = fileName;
     if (!isDirectory && config.hideFileExtension) {
         size_t dot = name.find_last_of(L'.');
-        if (dot != std::wstring::npos && dot > 0) name.resize(dot);
+        if (dot != std::wstring::npos && dot > 0)
+            name.resize(dot);
     }
-    if (config.hideStartingDigits) name = StripStartingDigits(name);
+    if (config.hideStartingDigits)
+        name = StripStartingDigits(name);
     return name;
 }
 
@@ -1558,37 +1752,51 @@ std::vector<TemplateEntry> EnumerateTemplates(EffectiveConfig const& config) {
 
     WIN32_FIND_DATAW findData{};
     HANDLE hFind = FindFirstFileExW(pattern.c_str(), FindExInfoBasic, &findData,
-                                    FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+                                    FindExSearchNameMatch, nullptr,
+                                    FIND_FIRST_EX_LARGE_FETCH);
     if (hFind == INVALID_HANDLE_VALUE) {
-        Wh_Log(L"Couldn't enumerate %s: %u", config.templateFolder.c_str(), GetLastError());
+        Wh_Log(L"Couldn't enumerate %s: %u", config.templateFolder.c_str(),
+               GetLastError());
         return entries;
     }
 
     do {
         std::wstring fileName = findData.cFileName;
-        if (fileName == L"." || fileName == L".." || _wcsicmp(fileName.c_str(), L"desktop.ini") == 0) continue;
-        if (findData.dwFileAttributes & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)) continue;
+        if (fileName == L"." || fileName == L".." ||
+            _wcsicmp(fileName.c_str(), L"desktop.ini") == 0)
+            continue;
+        if (findData.dwFileAttributes &
+            (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM))
+            continue;
 
         TemplateEntry entry;
-        entry.isDirectory = (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        entry.isDirectory =
+            (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
         entry.fileName = fileName;
         entry.path = JoinPath(config.templateFolder, fileName);
-        entry.displayName = MakeDisplayName(fileName, entry.isDirectory, config);
+        entry.displayName =
+            MakeDisplayName(fileName, entry.isDirectory, config);
         entries.push_back(std::move(entry));
     } while (FindNextFileW(hFind, &findData));
 
     FindClose(hFind);
 
-    std::sort(entries.begin(), entries.end(), [](TemplateEntry const& a, TemplateEntry const& b) {
-        if (a.isDirectory != b.isDirectory) return a.isDirectory;
-        return StrCmpLogicalW(a.fileName.c_str(), b.fileName.c_str()) < 0;
-    });
+    std::sort(entries.begin(), entries.end(),
+              [](TemplateEntry const& a, TemplateEntry const& b) {
+                  if (a.isDirectory != b.isDirectory)
+                      return a.isDirectory;
+                  return StrCmpLogicalW(a.fileName.c_str(),
+                                        b.fileName.c_str()) < 0;
+              });
 
     return entries;
 }
 
-std::wstring ReplaceAll(std::wstring str, std::wstring_view from, std::wstring const& to) {
-    if (from.empty()) return str;
+std::wstring ReplaceAll(std::wstring str,
+                        std::wstring_view from,
+                        std::wstring const& to) {
+    if (from.empty())
+        return str;
     size_t pos = str.find(from);
     while (pos != std::wstring::npos) {
         str.replace(pos, from.size(), to);
@@ -1603,16 +1811,20 @@ std::wstring TwoDigits(int value) {
     return buffer;
 }
 
-std::wstring ReplaceNameVariables(std::wstring const& fileName, std::wstring const& targetFolder) {
+std::wstring ReplaceNameVariables(std::wstring const& fileName,
+                                  std::wstring const& targetFolder) {
     SYSTEMTIME time{};
     GetLocalTime(&time);
 
     std::wstring parentFolderName;
     {
         std::wstring folder = targetFolder;
-        while (!folder.empty() && (folder.back() == L'\\' || folder.back() == L'/')) folder.pop_back();
+        while (!folder.empty() &&
+               (folder.back() == L'\\' || folder.back() == L'/'))
+            folder.pop_back();
         size_t slash = folder.find_last_of(L"\\/");
-        parentFolderName = slash == std::wstring::npos ? folder : folder.substr(slash + 1);
+        parentFolderName =
+            slash == std::wstring::npos ? folder : folder.substr(slash + 1);
     }
 
     std::wstring result = fileName;
@@ -1627,7 +1839,10 @@ std::wstring ReplaceNameVariables(std::wstring const& fileName, std::wstring con
     return result;
 }
 
-void SplitFileName(std::wstring const& fileName, bool isDirectory, std::wstring* baseName, std::wstring* extension) {
+void SplitFileName(std::wstring const& fileName,
+                   bool isDirectory,
+                   std::wstring* baseName,
+                   std::wstring* extension) {
     size_t dot = isDirectory ? std::wstring::npos : fileName.find_last_of(L'.');
     if (dot == std::wstring::npos || dot == 0) {
         *baseName = fileName;
@@ -1638,24 +1853,32 @@ void SplitFileName(std::wstring const& fileName, bool isDirectory, std::wstring*
     *extension = fileName.substr(dot);
 }
 
-std::wstring MakeUniquePath(std::wstring const& targetFolder, std::wstring const& fileName, bool isDirectory) {
+std::wstring MakeUniquePath(std::wstring const& targetFolder,
+                            std::wstring const& fileName,
+                            bool isDirectory) {
     std::wstring path = JoinPath(targetFolder, fileName);
-    if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) return path;
+    if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES)
+        return path;
 
     std::wstring baseName, extension;
     SplitFileName(fileName, isDirectory, &baseName, &extension);
 
     for (int i = 2; i < 10000; i++) {
-        std::wstring candidate = baseName + L" (" + std::to_wstring(i) + L")" + extension;
+        std::wstring candidate =
+            baseName + L" (" + std::to_wstring(i) + L")" + extension;
         path = JoinPath(targetFolder, candidate);
-        if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) return path;
+        if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES)
+            return path;
     }
     return std::wstring();
 }
 
-bool CopyTemplateItem(std::wstring const& source, std::wstring const& targetFolder, std::wstring const& targetName) {
+bool CopyTemplateItem(std::wstring const& source,
+                      std::wstring const& targetFolder,
+                      std::wstring const& targetName) {
     winrt::com_ptr<IFileOperation> operation;
-    HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(operation.put()));
+    HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL,
+                                  IID_PPV_ARGS(operation.put()));
     if (FAILED(hr)) {
         Wh_Log(L"CoCreateInstance(FileOperation) failed: %08X", hr);
         return false;
@@ -1668,44 +1891,66 @@ bool CopyTemplateItem(std::wstring const& source, std::wstring const& targetFold
     }
 
     winrt::com_ptr<IShellItem> sourceItem, targetFolderItem;
-    if (FAILED(SHCreateItemFromParsingName(source.c_str(), nullptr, IID_PPV_ARGS(sourceItem.put()))) ||
-        FAILED(SHCreateItemFromParsingName(targetFolder.c_str(), nullptr, IID_PPV_ARGS(targetFolderItem.put()))) ||
-        FAILED(operation->CopyItem(sourceItem.get(), targetFolderItem.get(), targetName.c_str(), nullptr)) ||
-        FAILED(operation->PerformOperations())) return false;
+    if (FAILED(SHCreateItemFromParsingName(source.c_str(), nullptr,
+                                           IID_PPV_ARGS(sourceItem.put()))) ||
+        FAILED(SHCreateItemFromParsingName(
+            targetFolder.c_str(), nullptr,
+            IID_PPV_ARGS(targetFolderItem.put()))) ||
+        FAILED(operation->CopyItem(sourceItem.get(), targetFolderItem.get(),
+                                   targetName.c_str(), nullptr)) ||
+        FAILED(operation->PerformOperations()))
+        return false;
 
     BOOL aborted = FALSE;
     return SUCCEEDED(operation->GetAnyOperationsAborted(&aborted)) && !aborted;
 }
 
-void SelectAndRename(winrt::com_ptr<IShellView> const& shellView, std::wstring const& path) {
-    if (!shellView) return;
+void SelectAndRename(winrt::com_ptr<IShellView> const& shellView,
+                     std::wstring const& path) {
+    if (!shellView)
+        return;
     PIDLIST_ABSOLUTE pidl = nullptr;
-    if (FAILED(SHParseDisplayName(path.c_str(), nullptr, &pidl, 0, nullptr)) || !pidl) return;
+    if (FAILED(SHParseDisplayName(path.c_str(), nullptr, &pidl, 0, nullptr)) ||
+        !pidl)
+        return;
 
     PCUITEMID_CHILD child = ILFindLastID(pidl);
     auto folderView = shellView.try_as<IFolderView>();
 
     for (int attempt = 0; attempt < 20 && !g_unloading; attempt++) {
         Sleep(50);
-        HRESULT hr = shellView->SelectItem(child, SVSI_SELECT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE | SVSI_FOCUSED | SVSI_EDIT);
-        if (FAILED(hr)) continue;
-        if (!folderView) break;
+        HRESULT hr = shellView->SelectItem(
+            child, SVSI_SELECT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE |
+                       SVSI_FOCUSED | SVSI_EDIT);
+        if (FAILED(hr))
+            continue;
+        if (!folderView)
+            break;
         int selectedCount = 0;
-        if (SUCCEEDED(folderView->ItemCount(SVGIO_SELECTION, &selectedCount)) && selectedCount > 0) break;
+        if (SUCCEEDED(folderView->ItemCount(SVGIO_SELECTION, &selectedCount)) &&
+            selectedCount > 0)
+            break;
     }
 
     CoTaskMemFree(pidl);
 }
 
-void CreateFromTemplateForWindow(HWND hExplorerWnd, TemplateEntry const& entry, bool replaceVariables) {
+void CreateFromTemplateForWindow(HWND hExplorerWnd,
+                                 TemplateEntry const& entry,
+                                 bool replaceVariables) {
     ExplorerContext context = GetExplorerContext(hExplorerWnd);
     if (context.folderPath.empty()) {
-        Wh_Log(L"No filesystem folder for window %08X", (DWORD)(ULONG_PTR)hExplorerWnd);
+        Wh_Log(L"No filesystem folder for window %08X",
+               (DWORD)(ULONG_PTR)hExplorerWnd);
         return;
     }
 
-    std::wstring fileName = replaceVariables ? ReplaceNameVariables(entry.fileName, context.folderPath) : entry.fileName;
-    std::wstring targetPath = MakeUniquePath(context.folderPath, fileName, entry.isDirectory);
+    std::wstring fileName =
+        replaceVariables
+            ? ReplaceNameVariables(entry.fileName, context.folderPath)
+            : entry.fileName;
+    std::wstring targetPath =
+        MakeUniquePath(context.folderPath, fileName, entry.isDirectory);
     if (targetPath.empty()) {
         Wh_Log(L"Couldn't find a free name for %s", fileName.c_str());
         return;
@@ -1713,8 +1958,11 @@ void CreateFromTemplateForWindow(HWND hExplorerWnd, TemplateEntry const& entry, 
 
     Wh_Log(L"Creating %s from %s", targetPath.c_str(), entry.path.c_str());
 
-    bool succeeded = CopyTemplateItem(entry.path, context.folderPath, PathFindFileNameW(targetPath.c_str()));
-    if (!succeeded && GetFileAttributesW(targetPath.c_str()) == INVALID_FILE_ATTRIBUTES) return;
+    bool succeeded = CopyTemplateItem(entry.path, context.folderPath,
+                                      PathFindFileNameW(targetPath.c_str()));
+    if (!succeeded &&
+        GetFileAttributesW(targetPath.c_str()) == INVALID_FILE_ATTRIBUTES)
+        return;
     SelectAndRename(context.shellView, targetPath);
 }
 
@@ -1724,11 +1972,17 @@ void CreateFromTemplateForWindow(HWND hExplorerWnd, TemplateEntry const& entry, 
 
 std::wstring ResolveAppExecutionAlias(std::wstring const& path) {
     DWORD attributes = GetFileAttributesW(path.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_REPARSE_POINT)) return path;
+    if (attributes == INVALID_FILE_ATTRIBUTES ||
+        !(attributes & FILE_ATTRIBUTE_REPARSE_POINT))
+        return path;
 
-    HANDLE hFile = CreateFileW(path.c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                               nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
-    if (hFile == INVALID_HANDLE_VALUE) return path;
+    HANDLE hFile = CreateFileW(
+        path.c_str(), FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    if (hFile == INVALID_HANDLE_VALUE)
+        return path;
 
     struct AppExecLinkReparseBuffer {
         ULONG reparseTag;
@@ -1740,11 +1994,14 @@ std::wstring ResolveAppExecutionAlias(std::wstring const& path) {
 
     alignas(8) BYTE buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
     DWORD bytesReturned = 0;
-    BOOL succeeded = DeviceIoControl(hFile, FSCTL_GET_REPARSE_POINT, nullptr, 0, buffer, sizeof(buffer), &bytesReturned, nullptr);
+    BOOL succeeded =
+        DeviceIoControl(hFile, FSCTL_GET_REPARSE_POINT, nullptr, 0, buffer,
+                        sizeof(buffer), &bytesReturned, nullptr);
     CloseHandle(hFile);
 
     auto* reparse = reinterpret_cast<AppExecLinkReparseBuffer*>(buffer);
-    if (!succeeded || bytesReturned < sizeof(AppExecLinkReparseBuffer) || reparse->reparseTag != IO_REPARSE_TAG_APPEXECLINK) {
+    if (!succeeded || bytesReturned < sizeof(AppExecLinkReparseBuffer) ||
+        reparse->reparseTag != IO_REPARSE_TAG_APPEXECLINK) {
         return path;
     }
 
@@ -1752,8 +2009,10 @@ std::wstring ResolveAppExecutionAlias(std::wstring const& path) {
     const WCHAR* end = reinterpret_cast<const WCHAR*>(buffer + bytesReturned);
     for (int i = 0; i < 3 && p < end; i++) {
         size_t length = wcsnlen(p, end - p);
-        if (p + length >= end) break;
-        if (i == 2) return std::wstring(p, length);
+        if (p + length >= end)
+            break;
+        if (i == 2)
+            return std::wstring(p, length);
         p += length + 1;
     }
 
@@ -1763,9 +2022,11 @@ std::wstring ResolveAppExecutionAlias(std::wstring const& path) {
 HICON ExtractCommandIcon(std::wstring const& command) {
     std::wstring path = ResolveAppExecutionAlias(ResolveCommandPath(command));
     HICON hIcon = nullptr;
-    if (ExtractIconExW(path.c_str(), 0, &hIcon, nullptr, 1) && hIcon) return hIcon;
+    if (ExtractIconExW(path.c_str(), 0, &hIcon, nullptr, 1) && hIcon)
+        return hIcon;
     SHFILEINFOW fileInfo{};
-    if (SHGetFileInfoW(path.c_str(), 0, &fileInfo, sizeof(fileInfo), SHGFI_ICON | SHGFI_LARGEICON)) {
+    if (SHGetFileInfoW(path.c_str(), 0, &fileInfo, sizeof(fileInfo),
+                       SHGFI_ICON | SHGFI_LARGEICON)) {
         return fileInfo.hIcon;
     }
     Wh_Log(L"Couldn't get an icon for %s (%s)", command.c_str(), path.c_str());
@@ -1781,7 +2042,9 @@ struct DecodedIcon {
 
 bool ReadBitmapPixels(HBITMAP hBitmap, DecodedIcon* decoded) {
     BITMAP bm{};
-    if (!GetObject(hBitmap, sizeof(bm), &bm) || bm.bmWidth <= 0 || bm.bmHeight <= 0) return false;
+    if (!GetObject(hBitmap, sizeof(bm), &bm) || bm.bmWidth <= 0 ||
+        bm.bmHeight <= 0)
+        return false;
 
     int width = bm.bmWidth;
     int height = bm.bmHeight;
@@ -1796,12 +2059,15 @@ bool ReadBitmapPixels(HBITMAP hBitmap, DecodedIcon* decoded) {
 
     std::vector<uint8_t> pixels((size_t)width * height * 4);
     HDC hdc = CreateCompatibleDC(nullptr);
-    if (!hdc) return false;
+    if (!hdc)
+        return false;
 
-    bool succeeded = GetDIBits(hdc, hBitmap, 0, height, pixels.data(), &bmi, DIB_RGB_COLORS) != 0;
+    bool succeeded = GetDIBits(hdc, hBitmap, 0, height, pixels.data(), &bmi,
+                               DIB_RGB_COLORS) != 0;
     DeleteDC(hdc);
 
-    if (!succeeded) return false;
+    if (!succeeded)
+        return false;
     decoded->width = width;
     decoded->height = height;
     decoded->pixels = std::move(pixels);
@@ -1810,18 +2076,21 @@ bool ReadBitmapPixels(HBITMAP hBitmap, DecodedIcon* decoded) {
 
 bool HasNoAlphaChannel(std::vector<uint8_t> const& pixels) {
     for (size_t p = 3; p < pixels.size(); p += 4) {
-        if (pixels[p]) return false;
+        if (pixels[p])
+            return false;
     }
     return true;
 }
 
 void MakeOpaque(std::vector<uint8_t>& pixels) {
-    for (size_t p = 3; p < pixels.size(); p += 4) pixels[p] = 255;
+    for (size_t p = 3; p < pixels.size(); p += 4)
+        pixels[p] = 255;
 }
 
 bool DecodeMonochromeIcon(HBITMAP hbmMask, DecodedIcon* decoded) {
     DecodedIcon mask;
-    if (!ReadBitmapPixels(hbmMask, &mask) || mask.height % 2 != 0) return false;
+    if (!ReadBitmapPixels(hbmMask, &mask) || mask.height % 2 != 0)
+        return false;
 
     int width = mask.width;
     int height = mask.height / 2;
@@ -1835,7 +2104,8 @@ bool DecodeMonochromeIcon(HBITMAP hbmMask, DecodedIcon* decoded) {
         for (int x = 0; x < width; x++) {
             size_t andIndex = ((size_t)y * width + x) * 4;
             size_t xorIndex = ((size_t)(y + height) * width + x) * 4;
-            if (mask.pixels[andIndex]) continue;
+            if (mask.pixels[andIndex])
+                continue;
             uint8_t value = mask.pixels[xorIndex] ? 255 : 0;
             result.pixels[andIndex + 0] = value;
             result.pixels[andIndex + 1] = value;
@@ -1850,7 +2120,8 @@ bool DecodeMonochromeIcon(HBITMAP hbmMask, DecodedIcon* decoded) {
 
 bool DecodeIcon(HICON hIcon, DecodedIcon* decoded) {
     ICONINFO iconInfo{};
-    if (!GetIconInfo(hIcon, &iconInfo)) return false;
+    if (!GetIconInfo(hIcon, &iconInfo))
+        return false;
 
     bool succeeded = false;
     if (iconInfo.hbmColor) {
@@ -1862,8 +2133,10 @@ bool DecodeIcon(HICON hIcon, DecodedIcon* decoded) {
                     uint8_t alpha = decoded->pixels[p + 3];
                     if (alpha != 255) {
                         decoded->pixels[p] = decoded->pixels[p] * alpha / 255;
-                        decoded->pixels[p + 1] = decoded->pixels[p + 1] * alpha / 255;
-                        decoded->pixels[p + 2] = decoded->pixels[p + 2] * alpha / 255;
+                        decoded->pixels[p + 1] =
+                            decoded->pixels[p + 1] * alpha / 255;
+                        decoded->pixels[p + 2] =
+                            decoded->pixels[p + 2] * alpha / 255;
                     }
                 }
             }
@@ -1873,15 +2146,19 @@ bool DecodeIcon(HICON hIcon, DecodedIcon* decoded) {
         succeeded = DecodeMonochromeIcon(iconInfo.hbmMask, decoded);
     }
 
-    if (iconInfo.hbmColor) DeleteObject(iconInfo.hbmColor);
-    if (iconInfo.hbmMask) DeleteObject(iconInfo.hbmMask);
+    if (iconInfo.hbmColor)
+        DeleteObject(iconInfo.hbmColor);
+    if (iconInfo.hbmMask)
+        DeleteObject(iconInfo.hbmMask);
     return succeeded;
 }
 
 muxm::ImageSource CreateImageSource(DecodedIcon const& decoded) try {
-    if (decoded.empty()) return nullptr;
+    if (decoded.empty())
+        return nullptr;
     muxm::Imaging::WriteableBitmap bitmap(decoded.width, decoded.height);
-    memcpy(bitmap.PixelBuffer().data(), decoded.pixels.data(), decoded.pixels.size());
+    memcpy(bitmap.PixelBuffer().data(), decoded.pixels.data(),
+           decoded.pixels.size());
     bitmap.Invalidate();
     return bitmap;
 } catch (...) {
@@ -1890,8 +2167,10 @@ muxm::ImageSource CreateImageSource(DecodedIcon const& decoded) try {
 }
 
 std::wstring ParseGlyphSetting(PCWSTR glyphSetting) {
-    if (!glyphSetting[0]) return std::wstring();
-    if (!glyphSetting[1]) return std::wstring(1, glyphSetting[0]);
+    if (!glyphSetting[0])
+        return std::wstring();
+    if (!glyphSetting[1])
+        return std::wstring(1, glyphSetting[0]);
     for (PCWSTR p = glyphSetting; *p; p++) {
         if (!iswxdigit(*p)) {
             Wh_Log(L"%s is not a glyph code point", glyphSetting);
@@ -1899,20 +2178,24 @@ std::wstring ParseGlyphSetting(PCWSTR glyphSetting) {
         }
     }
     unsigned long parsed = wcstoul(glyphSetting, nullptr, 16);
-    if (parsed > 0 && parsed <= 0xFFFF) return std::wstring(1, (WCHAR)parsed);
+    if (parsed > 0 && parsed <= 0xFFFF)
+        return std::wstring(1, (WCHAR)parsed);
     return std::wstring();
 }
 
 bool LooksLikeIconPath(std::wstring const& iconSetting) {
     if (iconSetting.find(L'\\') != std::wstring::npos ||
         iconSetting.find(L'/') != std::wstring::npos ||
-        iconSetting.find(L':') != std::wstring::npos) return true;
+        iconSetting.find(L':') != std::wstring::npos)
+        return true;
 
     std::wstring lower = ToLower(iconSetting);
     size_t comma = lower.rfind(L',');
-    if (comma != std::wstring::npos) lower.resize(comma);
+    if (comma != std::wstring::npos)
+        lower.resize(comma);
 
-    return lower.ends_with(L".exe") || lower.ends_with(L".dll") || lower.ends_with(L".ico");
+    return lower.ends_with(L".exe") || lower.ends_with(L".dll") ||
+           lower.ends_with(L".ico");
 }
 
 HICON LoadIconFromPath(std::wstring const& iconPath) {
@@ -1936,10 +2219,13 @@ HICON LoadIconFromPath(std::wstring const& iconPath) {
 
     expanded = ResolveAppExecutionAlias(expanded);
     HICON hIcon = nullptr;
-    if (ExtractIconExW(expanded.c_str(), iconIndex, &hIcon, nullptr, 1) && hIcon) return hIcon;
+    if (ExtractIconExW(expanded.c_str(), iconIndex, &hIcon, nullptr, 1) &&
+        hIcon)
+        return hIcon;
 
     SHFILEINFOW fileInfo{};
-    if (SHGetFileInfoW(expanded.c_str(), 0, &fileInfo, sizeof(fileInfo), SHGFI_ICON | SHGFI_LARGEICON)) {
+    if (SHGetFileInfoW(expanded.c_str(), 0, &fileInfo, sizeof(fileInfo),
+                       SHGFI_ICON | SHGFI_LARGEICON)) {
         return fileInfo.hIcon;
     }
     Wh_Log(L"Couldn't load an icon from %s", iconPath.c_str());
@@ -1953,7 +2239,9 @@ bool IsShellPath(std::wstring const& s) {
 bool DecodeShellPathIcon(std::wstring const& path, DecodedIcon* decoded) {
     std::wstring expanded = ExpandEnvVars(path);
     PIDLIST_ABSOLUTE pidl = nullptr;
-    if (FAILED(SHParseDisplayName(expanded.c_str(), nullptr, &pidl, 0, nullptr)) || !pidl) {
+    if (FAILED(
+            SHParseDisplayName(expanded.c_str(), nullptr, &pidl, 0, nullptr)) ||
+        !pidl) {
         Wh_Log(L"Couldn't parse shell path %s", path.c_str());
         return false;
     }
@@ -1961,20 +2249,25 @@ bool DecodeShellPathIcon(std::wstring const& path, DecodedIcon* decoded) {
     winrt::com_ptr<IShellItemImageFactory> factory;
     HRESULT hr = SHCreateItemFromIDList(pidl, IID_PPV_ARGS(factory.put()));
     CoTaskMemFree(pidl);
-    if (FAILED(hr) || !factory) return false;
+    if (FAILED(hr) || !factory)
+        return false;
 
     SIZE size = {32, 32};
     HBITMAP hBitmap = nullptr;
-    hr = factory->GetImage(size, SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK, &hBitmap);
-    if (FAILED(hr) || !hBitmap) return false;
+    hr = factory->GetImage(size, SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK,
+                           &hBitmap);
+    if (FAILED(hr) || !hBitmap)
+        return false;
 
     bool succeeded = ReadBitmapPixels(hBitmap, decoded);
     DeleteObject(hBitmap);
-    if (succeeded && HasNoAlphaChannel(decoded->pixels)) MakeOpaque(decoded->pixels);
+    if (succeeded && HasNoAlphaChannel(decoded->pixels))
+        MakeOpaque(decoded->pixels);
     return succeeded;
 }
 
-std::shared_ptr<DecodedIcon> ResolveIcon(std::wstring const& iconSetting, std::wstring const& command) {
+std::shared_ptr<DecodedIcon> ResolveIcon(std::wstring const& iconSetting,
+                                         std::wstring const& command) {
     auto decoded = std::make_shared<DecodedIcon>();
     bool isPath = !iconSetting.empty() && LooksLikeIconPath(iconSetting);
     if (isPath && IsShellPath(iconSetting)) {
@@ -1999,17 +2292,20 @@ std::shared_ptr<DecodedIcon> ResolveIcon(std::wstring const& iconSetting, std::w
 std::mutex g_iconCacheMutex;
 std::unordered_map<std::wstring, std::shared_ptr<DecodedIcon>> g_iconCache;
 
-std::shared_ptr<DecodedIcon> GetIcon(std::wstring const& iconSetting, std::wstring const& command) {
+std::shared_ptr<DecodedIcon> GetIcon(std::wstring const& iconSetting,
+                                     std::wstring const& command) {
     std::wstring key = iconSetting + L'\n' + command;
     {
         std::lock_guard<std::mutex> lock(g_iconCacheMutex);
         auto it = g_iconCache.find(key);
-        if (it != g_iconCache.end()) return it->second;
+        if (it != g_iconCache.end())
+            return it->second;
     }
 
     auto decoded = ResolveIcon(iconSetting, command);
     std::lock_guard<std::mutex> lock(g_iconCacheMutex);
-    return g_iconCache.insert_or_assign(std::move(key), std::move(decoded)).first->second;
+    return g_iconCache.insert_or_assign(std::move(key), std::move(decoded))
+        .first->second;
 }
 
 muxc::IconElement CreateGlyphIcon(PCWSTR glyph) {
@@ -2025,24 +2321,21 @@ bool IsSystemDarkModeActive() {
     RegGetValueW(
         HKEY_CURRENT_USER,
         L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-        L"AppsUseLightTheme",
-        RRF_RT_REG_DWORD,
-        nullptr,
-        &useLightTheme,
-        &size
-    );
+        L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &useLightTheme, &size);
     return useLightTheme == 0;
 }
 
 std::wstring TrimWhitespaceAndQuotes(std::wstring str) {
     size_t first = str.find_first_not_of(L" \t");
-    if (first == std::wstring::npos) return L"";
+    if (first == std::wstring::npos)
+        return L"";
     size_t last = str.find_last_not_of(L" \t");
     str = str.substr(first, last - first + 1);
     if (str.size() >= 2 && str.front() == L'"' && str.back() == L'"') {
         str = str.substr(1, str.size() - 2);
         first = str.find_first_not_of(L" \t");
-        if (first == std::wstring::npos) return L"";
+        if (first == std::wstring::npos)
+            return L"";
         last = str.find_last_not_of(L" \t");
         str = str.substr(first, last - first + 1);
     }
@@ -2058,22 +2351,29 @@ std::wstring ResolveThemedIconString(const std::wstring& rawSetting) {
     }
 
     // Split at the pipe: [Light Theme | Dark Theme]
-    std::wstring lightTheme = TrimWhitespaceAndQuotes(rawSetting.substr(0, pipePos));
-    std::wstring darkTheme = TrimWhitespaceAndQuotes(rawSetting.substr(pipePos + 1));
+    std::wstring lightTheme =
+        TrimWhitespaceAndQuotes(rawSetting.substr(0, pipePos));
+    std::wstring darkTheme =
+        TrimWhitespaceAndQuotes(rawSetting.substr(pipePos + 1));
 
     // Fallbacks if one side is left empty
-    if (lightTheme.empty()) lightTheme = darkTheme;
-    if (darkTheme.empty()) darkTheme = lightTheme;
+    if (lightTheme.empty())
+        lightTheme = darkTheme;
+    if (darkTheme.empty())
+        darkTheme = lightTheme;
 
     return IsSystemDarkModeActive() ? darkTheme : lightTheme;
 }
 
-muxc::IconElement TryCreateIconElement(std::wstring const& iconSetting, std::wstring const& command) {
+muxc::IconElement TryCreateIconElement(std::wstring const& iconSetting,
+                                       std::wstring const& command) {
     std::wstring effectiveSetting = ResolveThemedIconString(iconSetting);
 
-    bool isPath = !effectiveSetting.empty() && LooksLikeIconPath(effectiveSetting);
+    bool isPath =
+        !effectiveSetting.empty() && LooksLikeIconPath(effectiveSetting);
     if (isPath || effectiveSetting.empty()) {
-        if (auto source = CreateImageSource(*GetIcon(effectiveSetting, command))) {
+        if (auto source =
+                CreateImageSource(*GetIcon(effectiveSetting, command))) {
             muxc::ImageIcon imageIcon;
             imageIcon.Source(source);
             return imageIcon;
@@ -2081,25 +2381,33 @@ muxc::IconElement TryCreateIconElement(std::wstring const& iconSetting, std::wst
     }
 
     std::wstring glyph;
-    if (!isPath) glyph = ParseGlyphSetting(effectiveSetting.c_str());
-    if (glyph.empty()) return nullptr;
+    if (!isPath)
+        glyph = ParseGlyphSetting(effectiveSetting.c_str());
+    if (glyph.empty())
+        return nullptr;
     return CreateGlyphIcon(glyph.c_str());
 }
 
-muxc::IconElement CreateIconElement(std::wstring const& iconSetting, std::wstring const& command, PCWSTR defaultGlyph) {
-    if (auto icon = TryCreateIconElement(iconSetting, command)) return icon;
+muxc::IconElement CreateIconElement(std::wstring const& iconSetting,
+                                    std::wstring const& command,
+                                    PCWSTR defaultGlyph) {
+    if (auto icon = TryCreateIconElement(iconSetting, command))
+        return icon;
     return CreateGlyphIcon(defaultGlyph);
 }
 
 muxc::IconElement MakeCommandButtonIcon(ActionItem const& item) {
-    if (item.hideIcon) return nullptr;
+    if (item.hideIcon)
+        return nullptr;
     return CreateIconElement(item.icon, item.command, L"");
 }
 
-muxc::IconElement MakeNewPlusButtonIcon(std::wstring const& iconSetting, std::wstring const& originalIconUri) {
+muxc::IconElement MakeNewPlusButtonIcon(std::wstring const& iconSetting,
+                                        std::wstring const& originalIconUri) {
     if (iconSetting.empty() && !originalIconUri.empty()) {
         try {
-            muxm::Imaging::SvgImageSource svgSource(wf::Uri(winrt::hstring{originalIconUri}));
+            muxm::Imaging::SvgImageSource svgSource(
+                wf::Uri(winrt::hstring{originalIconUri}));
             muxc::ImageIcon imageIcon;
             imageIcon.Source(svgSource);
             return imageIcon;
@@ -2112,7 +2420,8 @@ muxc::IconElement MakeNewPlusButtonIcon(std::wstring const& iconSetting, std::ws
 
 muxm::ImageSource LoadShellItemIcon(std::wstring const& path) {
     DecodedIcon decoded;
-    if (!DecodeShellPathIcon(path, &decoded)) return nullptr;
+    if (!DecodeShellPathIcon(path, &decoded))
+        return nullptr;
     return CreateImageSource(decoded);
 }
 
@@ -2123,34 +2432,43 @@ bool IsOurNewPlusButton(muxc::ICommandBarElement const& command) {
 
 bool IsOurElement(muxc::ICommandBarElement const& command) {
     auto element = command.try_as<mux::FrameworkElement>();
-    if (!element) return false;
+    if (!element)
+        return false;
     std::wstring_view name{element.Name()};
-    return name.starts_with(kButtonNamePrefix) || name == kNewPlusButtonName || name == kContextMenuButtonName;
+    return name.starts_with(kButtonNamePrefix) || name == kNewPlusButtonName ||
+           name == kContextMenuButtonName;
 }
 
-bool HasElement(muxc::CommandBar const& commandBar, bool (*predicate)(muxc::ICommandBarElement const&)) {
+bool HasElement(muxc::CommandBar const& commandBar,
+                bool (*predicate)(muxc::ICommandBarElement const&)) {
     for (auto const& command : commandBar.PrimaryCommands()) {
-        if (predicate(command)) return true;
+        if (predicate(command))
+            return true;
     }
     return false;
 }
 
 std::wstring GetButtonIconUri(muxc::AppBarButton const& button) try {
     auto icon = button.Icon();
-    if (!icon) return std::wstring();
+    if (!icon)
+        return std::wstring();
 
     wf::Uri uri{nullptr};
     if (auto imageIcon = icon.try_as<muxc::ImageIcon>()) {
         if (auto source = imageIcon.Source()) {
-            if (auto svgSource = source.try_as<muxm::Imaging::SvgImageSource>()) {
+            if (auto svgSource =
+                    source.try_as<muxm::Imaging::SvgImageSource>()) {
                 uri = svgSource.UriSource();
             }
         }
-    } else if (auto iconSourceElement = icon.try_as<muxc::IconSourceElement>()) {
+    } else if (auto iconSourceElement =
+                   icon.try_as<muxc::IconSourceElement>()) {
         if (auto iconSource = iconSourceElement.IconSource()) {
-            if (auto imageIconSource = iconSource.try_as<muxc::ImageIconSource>()) {
+            if (auto imageIconSource =
+                    iconSource.try_as<muxc::ImageIconSource>()) {
                 if (auto source = imageIconSource.ImageSource()) {
-                    if (auto svgSource = source.try_as<muxm::Imaging::SvgImageSource>()) {
+                    if (auto svgSource =
+                            source.try_as<muxm::Imaging::SvgImageSource>()) {
                         uri = svgSource.UriSource();
                     }
                 }
@@ -2160,7 +2478,8 @@ std::wstring GetButtonIconUri(muxc::AppBarButton const& button) try {
         uri = bitmapIcon.UriSource();
     }
 
-    if (!uri) return std::wstring();
+    if (!uri)
+        return std::wstring();
     return std::wstring{uri.AbsoluteUri()};
 } catch (...) {
     return std::wstring();
@@ -2170,16 +2489,22 @@ int IdentifyDefaultButton(muxc::AppBarButton const& button) {
     std::wstring uri = ToLower(GetButtonIconUri(button));
     if (!uri.empty()) {
         size_t slash = uri.find_last_of(L'/');
-        std::wstring_view fileName = slash == std::wstring::npos ? std::wstring_view(uri) : std::wstring_view(uri).substr(slash + 1);
-        if (fileName.starts_with(L"windows.iconsize.")) return kViewButtonIndex;
+        std::wstring_view fileName =
+            slash == std::wstring::npos
+                ? std::wstring_view(uri)
+                : std::wstring_view(uri).substr(slash + 1);
+        if (fileName.starts_with(L"windows.iconsize."))
+            return kViewButtonIndex;
 
         for (int i = 0; i < kDefaultButtonCount; i++) {
-            if (fileName == kDefaultButtons[i].svgFileName) return i;
+            if (fileName == kDefaultButtons[i].svgFileName)
+                return i;
         }
     }
 
     try {
-        if (mux::Automation::AutomationProperties::GetAutomationId(button) == L"SortAndGroupButton") {
+        if (mux::Automation::AutomationProperties::GetAutomationId(button) ==
+            L"SortAndGroupButton") {
             return kSortButtonIndex;
         }
     } catch (...) {
@@ -2190,7 +2515,8 @@ int IdentifyDefaultButton(muxc::AppBarButton const& button) {
 
 std::wstring GetAutomationId(mux::FrameworkElement const& element) {
     try {
-        return std::wstring{mux::Automation::AutomationProperties::GetAutomationId(element)};
+        return std::wstring{
+            mux::Automation::AutomationProperties::GetAutomationId(element)};
     } catch (...) {
         return std::wstring();
     }
@@ -2220,29 +2546,38 @@ bool ShouldHide(ManagedTarget const& target);
 
 mux::Visibility EffectiveVisibility(mux::UIElement const& element) {
     auto* entry = FindManagedElement(element);
-    if (entry && entry->hasOriginalVisibility) return entry->originalVisibility;
+    if (entry && entry->hasOriginalVisibility)
+        return entry->originalVisibility;
     return element.Visibility();
 }
 
 bool IsGroupHidden(std::shared_ptr<std::vector<GroupMember>> const& group) {
-    if (!group || group->empty()) return false;
+    if (!group || group->empty())
+        return false;
     for (auto const& member : *group) {
         auto element = member.element.get();
-        if (!element) continue;
-        if (member.defaultButtonIndex >= 0 && ShouldHide({ManagedKind::Button, member.defaultButtonIndex})) continue;
-        if (EffectiveVisibility(element) == mux::Visibility::Collapsed) continue;
+        if (!element)
+            continue;
+        if (member.defaultButtonIndex >= 0 &&
+            ShouldHide({ManagedKind::Button, member.defaultButtonIndex}))
+            continue;
+        if (EffectiveVisibility(element) == mux::Visibility::Collapsed)
+            continue;
         return false;
     }
     return true;
 }
 
 bool ShouldHide(ManagedTarget const& target) {
-    if (target.kind == ManagedKind::GroupSeparator) return IsGroupHidden(target.group);
+    if (target.kind == ManagedKind::GroupSeparator)
+        return IsGroupHidden(target.group);
 
     std::lock_guard<std::mutex> lock(g_settings.mutex);
     switch (target.kind) {
         case ManagedKind::Button:
-            if (target.index == kNewButtonIndex && target.newPlusPresent && g_settings.newPlus.enabled && !g_settings.newPlus.keepOriginalNewButton) {
+            if (target.index == kNewButtonIndex && target.newPlusPresent &&
+                g_settings.newPlus.enabled &&
+                !g_settings.newPlus.keepOriginalNewButton) {
                 return true;
             }
             return g_settings.hideDefaultButtons[target.index];
@@ -2260,7 +2595,8 @@ bool ShouldHide(ManagedTarget const& target) {
 
 thread_local int g_settingVisibilityDepth;
 
-void SetVisibilityInternal(mux::UIElement const& element, mux::Visibility visibility) {
+void SetVisibilityInternal(mux::UIElement const& element,
+                           mux::Visibility visibility) {
     g_settingVisibilityDepth++;
     try {
         element.Visibility(visibility);
@@ -2270,14 +2606,18 @@ void SetVisibilityInternal(mux::UIElement const& element, mux::Visibility visibi
     g_settingVisibilityDepth--;
 }
 
-void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool forceShow = false);
+void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar,
+                                  bool forceShow = false);
 void UpdateCommandBar(muxc::CommandBar const& commandBar);
 
 thread_local std::unordered_map<void*, bool> g_pendingUpdates;
 
-void QueueCommandBarUpdate(winrt::weak_ref<muxc::CommandBar> const& weakCommandBar, bool fullUpdate) {
+void QueueCommandBarUpdate(
+    winrt::weak_ref<muxc::CommandBar> const& weakCommandBar,
+    bool fullUpdate) {
     auto commandBar = weakCommandBar.get();
-    if (!commandBar) return;
+    if (!commandBar)
+        return;
 
     void* key = winrt::get_abi(commandBar);
     auto [it, inserted] = g_pendingUpdates.insert({key, fullUpdate});
@@ -2296,7 +2636,8 @@ void QueueCommandBarUpdate(winrt::weak_ref<muxc::CommandBar> const& weakCommandB
         return full;
     };
 
-    auto dispatcherQueue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    auto dispatcherQueue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::
+        GetForCurrentThread();
     if (!dispatcherQueue) {
         takePending();
         return;
@@ -2304,11 +2645,14 @@ void QueueCommandBarUpdate(winrt::weak_ref<muxc::CommandBar> const& weakCommandB
 
     dispatcherQueue.TryEnqueue([weakCommandBar, takePending]() {
         bool full = takePending();
-        if (g_unloading) return;
+        if (g_unloading)
+            return;
         if (auto commandBar = weakCommandBar.get()) {
             try {
-                if (full) UpdateCommandBar(commandBar);
-                else ApplyDefaultButtonVisibility(commandBar);
+                if (full)
+                    UpdateCommandBar(commandBar);
+                else
+                    ApplyDefaultButtonVisibility(commandBar);
             } catch (...) {
                 Wh_Log(L"Error %08X", winrt::to_hresult().value);
             }
@@ -2316,17 +2660,23 @@ void QueueCommandBarUpdate(winrt::weak_ref<muxc::CommandBar> const& weakCommandB
     });
 }
 
-void QueueVisibilityRecompute(winrt::weak_ref<muxc::CommandBar> const& weakCommandBar) {
+void QueueVisibilityRecompute(
+    winrt::weak_ref<muxc::CommandBar> const& weakCommandBar) {
     QueueCommandBarUpdate(weakCommandBar, false);
 }
 
-void WatchVisibility(mux::UIElement const& element, ManagedTarget const& target, winrt::weak_ref<muxc::CommandBar> const& owner) {
+void WatchVisibility(mux::UIElement const& element,
+                     ManagedTarget const& target,
+                     winrt::weak_ref<muxc::CommandBar> const& owner) {
     int64_t token = element.RegisterPropertyChangedCallback(
         mux::UIElement::VisibilityProperty(),
-        [target, owner](mux::DependencyObject const& sender, mux::DependencyProperty const&) {
-            if (g_unloading || g_settingVisibilityDepth > 0) return;
+        [target, owner](mux::DependencyObject const& sender,
+                        mux::DependencyProperty const&) {
+            if (g_unloading || g_settingVisibilityDepth > 0)
+                return;
             auto element = sender.try_as<mux::UIElement>();
-            if (!element) return;
+            if (!element)
+                return;
 
             mux::Visibility visibility = element.Visibility();
             {
@@ -2335,7 +2685,9 @@ void WatchVisibility(mux::UIElement const& element, ManagedTarget const& target,
                 entry.hasOriginalVisibility = true;
             }
 
-            if (target.kind != ManagedKind::GroupSeparator && visibility != mux::Visibility::Collapsed && ShouldHide(target)) {
+            if (target.kind != ManagedKind::GroupSeparator &&
+                visibility != mux::Visibility::Collapsed &&
+                ShouldHide(target)) {
                 SetVisibilityInternal(element, mux::Visibility::Collapsed);
             }
             QueueVisibilityRecompute(owner);
@@ -2348,14 +2700,17 @@ void WatchVisibility(mux::UIElement const& element, ManagedTarget const& target,
 
 void UnwatchVisibilityForCurrentThread() {
     for (auto& entry : g_managedElements) {
-        if (!entry.watched) continue;
+        if (!entry.watched)
+            continue;
         auto element = entry.element.get();
         int64_t token = entry.visibilityToken;
         entry.watched = false;
         entry.visibilityToken = 0;
-        if (!element) continue;
+        if (!element)
+            continue;
         try {
-            element.UnregisterPropertyChangedCallback(mux::UIElement::VisibilityProperty(), token);
+            element.UnregisterPropertyChangedCallback(
+                mux::UIElement::VisibilityProperty(), token);
         } catch (...) {
             Wh_Log(L"Error %08X", winrt::to_hresult().value);
         }
@@ -2366,7 +2721,10 @@ void ForgetManagedElementsForCurrentThread() {
     g_managedElements.clear();
 }
 
-void SetManagedVisibility(mux::UIElement const& element, ManagedTarget const& target, bool forceShow, winrt::weak_ref<muxc::CommandBar> const& owner) {
+void SetManagedVisibility(mux::UIElement const& element,
+                          ManagedTarget const& target,
+                          bool forceShow,
+                          winrt::weak_ref<muxc::CommandBar> const& owner) {
     mux::Visibility original;
     bool watch;
     {
@@ -2379,11 +2737,16 @@ void SetManagedVisibility(mux::UIElement const& element, ManagedTarget const& ta
         watch = !forceShow && !entry.watched;
     }
 
-    if (watch) WatchVisibility(element, target, owner);
-    SetVisibilityInternal(element, !forceShow && ShouldHide(target) ? mux::Visibility::Collapsed : original);
+    if (watch)
+        WatchVisibility(element, target, owner);
+    SetVisibilityInternal(element, !forceShow && ShouldHide(target)
+                                       ? mux::Visibility::Collapsed
+                                       : original);
 }
 
-void ApplyItemSpacing(muxc::AppBarButton const& button, int spacing, bool reset) {
+void ApplyItemSpacing(muxc::AppBarButton const& button,
+                      int spacing,
+                      bool reset) {
     mux::Thickness originalMargin;
     double originalMinWidth;
     {
@@ -2411,19 +2774,23 @@ void ApplyItemSpacing(muxc::AppBarButton const& button, int spacing, bool reset)
     button.MinWidth(0);
 }
 
-mux::FrameworkElement FindDescendantByName(mux::DependencyObject const& root, std::wstring_view name) {
+mux::FrameworkElement FindDescendantByName(mux::DependencyObject const& root,
+                                           std::wstring_view name) {
     int count = muxm::VisualTreeHelper::GetChildrenCount(root);
     for (int i = 0; i < count; i++) {
         auto child = muxm::VisualTreeHelper::GetChild(root, i);
-        if (auto element = child.try_as<mux::FrameworkElement>(); element && element.Name() == name) {
+        if (auto element = child.try_as<mux::FrameworkElement>();
+            element && element.Name() == name) {
             return element;
         }
-        if (auto found = FindDescendantByName(child, name)) return found;
+        if (auto found = FindDescendantByName(child, name))
+            return found;
     }
     return nullptr;
 }
 
-void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool forceShow) {
+void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar,
+                                  bool forceShow) {
     bool hideMore;
     int itemSpacing;
     {
@@ -2434,7 +2801,9 @@ void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool force
 
     bool isPrimary = commandBar.Name() == L"FileExplorerCommandBar";
     auto weakCommandBar = winrt::make_weak(commandBar);
-    auto setVisibility = [&weakCommandBar, forceShow](mux::UIElement const& element, ManagedTarget const& target) {
+    auto setVisibility = [&weakCommandBar, forceShow](
+                             mux::UIElement const& element,
+                             ManagedTarget const& target) {
         SetManagedVisibility(element, target, forceShow, weakCommandBar);
     };
 
@@ -2458,7 +2827,9 @@ void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool force
         entry.command = commands.GetAt(i);
         entry.isOurs = IsOurElement(entry.command);
         entry.isNewPlus = entry.isOurs && IsOurNewPlusButton(entry.command);
-        entry.isSeparator = !entry.isOurs && static_cast<bool>(entry.command.try_as<muxc::AppBarSeparator>());
+        entry.isSeparator =
+            !entry.isOurs &&
+            static_cast<bool>(entry.command.try_as<muxc::AppBarSeparator>());
 
         if (!entry.isOurs && !entry.isSeparator) {
             if (auto button = entry.command.try_as<muxc::AppBarButton>()) {
@@ -2467,8 +2838,11 @@ void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool force
                 } else {
                     entry.defaultIndex = IdentifyDefaultButton(button);
                     if (entry.defaultIndex < 0) {
-                        Wh_Log(L"Unrecognized command %u: icon %s, automation id %s",
-                               i, GetButtonIconUri(button).c_str(), GetAutomationId(button).c_str());
+                        Wh_Log(
+                            L"Unrecognized command %u: icon %s, automation id "
+                            L"%s",
+                            i, GetButtonIconUri(button).c_str(),
+                            GetAutomationId(button).c_str());
                     }
                 }
             }
@@ -2479,12 +2853,15 @@ void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool force
     uint32_t firstCustomIndex = count;
     bool hasNewPlusButton = false;
     for (uint32_t i = 0; i < count; i++) {
-        if (entries[i].isNewPlus) hasNewPlusButton = true;
-        else if (entries[i].isOurs && firstCustomIndex == count) firstCustomIndex = i;
+        if (entries[i].isNewPlus)
+            hasNewPlusButton = true;
+        else if (entries[i].isOurs && firstCustomIndex == count)
+            firstCustomIndex = i;
     }
 
     uint32_t viewSeparatorIndex = count;
-    if (firstCustomIndex > 0 && firstCustomIndex < count && entries[firstCustomIndex - 1].isSeparator) {
+    if (firstCustomIndex > 0 && firstCustomIndex < count &&
+        entries[firstCustomIndex - 1].isSeparator) {
         viewSeparatorIndex = firstCustomIndex - 1;
     } else {
         for (uint32_t i = count; i > 0; i--) {
@@ -2499,10 +2876,13 @@ void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool force
         auto group = std::make_shared<std::vector<GroupMember>>();
         for (uint32_t i = separatorIndex + 1; i < count; i++) {
             auto const& entry = entries[i];
-            if (entry.isNewPlus) continue;
-            if (entry.isSeparator || entry.isOurs) break;
+            if (entry.isNewPlus)
+                continue;
+            if (entry.isSeparator || entry.isOurs)
+                break;
             if (auto element = entry.command.try_as<mux::UIElement>()) {
-                group->push_back({winrt::make_weak(element), entry.defaultIndex});
+                group->push_back(
+                    {winrt::make_weak(element), entry.defaultIndex});
             }
         }
         return group;
@@ -2522,28 +2902,34 @@ void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool force
         if (entry.isSeparator) {
             auto separator = entry.command.as<muxc::AppBarSeparator>();
             int target = -1;
-            if (prevIndex == kNewButtonIndex) target = kNewButtonIndex;
-            else if (prevIndex == kDeleteButtonIndex) target = kDeleteButtonIndex;
-            else if (i == viewSeparatorIndex) target = kViewButtonIndex;
+            if (prevIndex == kNewButtonIndex)
+                target = kNewButtonIndex;
+            else if (prevIndex == kDeleteButtonIndex)
+                target = kDeleteButtonIndex;
+            else if (i == viewSeparatorIndex)
+                target = kViewButtonIndex;
 
             if (target >= 0) {
                 setVisibility(separator, {ManagedKind::SeparatorAfter, target});
             } else {
-                setVisibility(separator, {ManagedKind::GroupSeparator, -1, false, collectGroup(i)});
+                setVisibility(separator, {ManagedKind::GroupSeparator, -1,
+                                          false, collectGroup(i)});
             }
             prevIndex = -1;
             continue;
         }
 
         if (entry.isDetailsToggle) {
-            setVisibility(entry.command.as<mux::UIElement>(), {ManagedKind::DetailsToggle});
+            setVisibility(entry.command.as<mux::UIElement>(),
+                          {ManagedKind::DetailsToggle});
             prevIndex = -1;
             continue;
         }
 
         if (entry.defaultIndex >= 0) {
             auto button = entry.command.as<muxc::AppBarButton>();
-            setVisibility(button, {ManagedKind::Button, entry.defaultIndex, hasNewPlusButton});
+            setVisibility(button, {ManagedKind::Button, entry.defaultIndex,
+                                   hasNewPlusButton});
             ApplyItemSpacing(button, itemSpacing, forceShow);
         }
 
@@ -2561,58 +2947,77 @@ void ApplyDefaultButtonVisibility(muxc::CommandBar const& commandBar, bool force
             originalOverflow = entry.originalOverflow;
         }
 
-        commandBar.OverflowButtonVisibility(!forceShow && hideMore ? muxc::CommandBarOverflowButtonVisibility::Collapsed : originalOverflow);
-        if (auto overflowSeparator = FindDescendantByName(commandBar, L"OverflowSeparator")) {
+        commandBar.OverflowButtonVisibility(
+            !forceShow && hideMore
+                ? muxc::CommandBarOverflowButtonVisibility::Collapsed
+                : originalOverflow);
+        if (auto overflowSeparator =
+                FindDescendantByName(commandBar, L"OverflowSeparator")) {
             setVisibility(overflowSeparator, {ManagedKind::OverflowElement});
         }
     }
 }
 
-muxc::AppBarButton CreateBareButton(int index, std::wstring const& tooltip, std::wstring const& labelText,
-                                    muxc::IconElement const& icon, bool showLabel = false) {
+muxc::AppBarButton CreateBareButton(int index,
+                                    std::wstring const& tooltip,
+                                    std::wstring const& labelText,
+                                    muxc::IconElement const& icon,
+                                    bool showLabel = false) {
     std::wstring name = kButtonNamePrefix;
     name += L'_';
     name += std::to_wstring(index);
 
     muxc::AppBarButton button;
     button.Name(name.c_str());
-    
+
     std::wstring displayLabel = labelText.empty() ? tooltip : labelText;
     button.Label(displayLabel.c_str());
-    button.LabelPosition(showLabel ? muxc::CommandBarLabelPosition::Default : muxc::CommandBarLabelPosition::Collapsed);
+    button.LabelPosition(showLabel ? muxc::CommandBarLabelPosition::Default
+                                   : muxc::CommandBarLabelPosition::Collapsed);
     button.Icon(icon);
 
     if (!tooltip.empty()) {
-        muxc::ToolTipService::SetToolTip(button, winrt::box_value(winrt::hstring{tooltip}));
+        muxc::ToolTipService::SetToolTip(
+            button, winrt::box_value(winrt::hstring{tooltip}));
     }
 
     return button;
 }
 
-muxc::IconElement TryCreateIconElement(std::wstring const& iconSetting, std::wstring const& command);
+muxc::IconElement TryCreateIconElement(std::wstring const& iconSetting,
+                                       std::wstring const& command);
 muxc::IconElement MakeCommandButtonIcon(ActionItem const& item);
 
 muxc::AppBarButton CreateActionButton(ActionItem const& item, int index) {
-    muxc::AppBarButton button = CreateBareButton(index, item.name, item.labelText, MakeCommandButtonIcon(item), item.showLabel);
+    muxc::AppBarButton button =
+        CreateBareButton(index, item.name, item.labelText,
+                         MakeCommandButtonIcon(item), item.showLabel);
 
-    TrackRevoker(button, button.Click(winrt::auto_revoke, [item](wf::IInspectable const& sender, mux::RoutedEventArgs const&) {
-        if (auto element = sender.try_as<mux::FrameworkElement>()) {
-            OnActionInvoked(element, item);
-        }
-    }));
+    TrackRevoker(
+        button,
+        button.Click(winrt::auto_revoke, [item](wf::IInspectable const& sender,
+                                                mux::RoutedEventArgs const&) {
+            if (auto element = sender.try_as<mux::FrameworkElement>()) {
+                OnActionInvoked(element, item);
+            }
+        }));
 
     return button;
 }
 
-void AppendMenuEntries(std::vector<ActionItem> const& items, wfc::IVector<muxc::MenuFlyoutItemBase> const& target,
+void AppendMenuEntries(std::vector<ActionItem> const& items,
+                       wfc::IVector<muxc::MenuFlyoutItemBase> const& target,
                        winrt::weak_ref<muxc::AppBarButton> const& weakButton);
 
-muxc::MenuFlyoutItemBase CreateMenuEntry(ActionItem const& item, winrt::weak_ref<muxc::AppBarButton> const& weakButton) {
+muxc::MenuFlyoutItemBase CreateMenuEntry(
+    ActionItem const& item,
+    winrt::weak_ref<muxc::AppBarButton> const& weakButton) {
     if (item.isMenu && !item.subItems.empty()) {
         muxc::MenuFlyoutSubItem subMenu;
         subMenu.Text(item.name.c_str());
         if (!item.hideIcon) {
-            if (auto icon = TryCreateIconElement(item.icon, item.command)) subMenu.Icon(icon);
+            if (auto icon = TryCreateIconElement(item.icon, item.command))
+                subMenu.Icon(icon);
         }
         AppendMenuEntries(item.subItems, subMenu.Items(), weakButton);
         return subMenu;
@@ -2621,21 +3026,28 @@ muxc::MenuFlyoutItemBase CreateMenuEntry(ActionItem const& item, winrt::weak_ref
     muxc::MenuFlyoutItem menuItem;
     menuItem.Text(item.name.c_str());
     if (!item.hideIcon) {
-        if (auto icon = TryCreateIconElement(item.icon, item.command)) menuItem.Icon(icon);
+        if (auto icon = TryCreateIconElement(item.icon, item.command))
+            menuItem.Icon(icon);
     }
 
-    TrackRevoker(menuItem, menuItem.Click(winrt::auto_revoke, [item, weakButton](wf::IInspectable const&, mux::RoutedEventArgs const&) {
-        if (auto button = weakButton.get()) OnActionInvoked(button, item);
-    }));
+    TrackRevoker(menuItem, menuItem.Click(
+                               winrt::auto_revoke,
+                               [item, weakButton](wf::IInspectable const&,
+                                                  mux::RoutedEventArgs const&) {
+                                   if (auto button = weakButton.get())
+                                       OnActionInvoked(button, item);
+                               }));
 
     return menuItem;
 }
 
-void AppendMenuEntries(std::vector<ActionItem> const& items, wfc::IVector<muxc::MenuFlyoutItemBase> const& target,
+void AppendMenuEntries(std::vector<ActionItem> const& items,
+                       wfc::IVector<muxc::MenuFlyoutItemBase> const& target,
                        winrt::weak_ref<muxc::AppBarButton> const& weakButton) {
     for (auto const& item : items) {
         target.Append(CreateMenuEntry(item, weakButton));
-        if (item.separatorAfter) target.Append(muxc::MenuFlyoutSeparator());
+        if (item.separatorAfter)
+            target.Append(muxc::MenuFlyoutSeparator());
     }
 }
 
@@ -2656,7 +3068,9 @@ void ReleaseHoverTimer(HoverTimerEntry const& entry) {
     }
 }
 
-void TrackHoverTimer(muxc::AppBarButton const& button, mux::DispatcherTimer const& timer, winrt::event_token tickToken) {
+void TrackHoverTimer(muxc::AppBarButton const& button,
+                     mux::DispatcherTimer const& timer,
+                     winrt::event_token tickToken) {
     for (auto it = g_hoverTimers.begin(); it != g_hoverTimers.end();) {
         if (!it->button.get()) {
             ReleaseHoverTimer(*it);
@@ -2671,33 +3085,48 @@ void TrackHoverTimer(muxc::AppBarButton const& button, mux::DispatcherTimer cons
 void StopHoverTimersForCurrentThread() {
     std::vector<HoverTimerEntry> taken;
     taken.swap(g_hoverTimers);
-    for (auto const& entry : taken) ReleaseHoverTimer(entry);
+    for (auto const& entry : taken)
+        ReleaseHoverTimer(entry);
 }
 
-void SetUpOpenOnHover(muxc::AppBarButton const& button, int hoverDelayMs, std::function<void()> const& open) {
+void SetUpOpenOnHover(muxc::AppBarButton const& button,
+                      int hoverDelayMs,
+                      std::function<void()> const& open) {
     if (hoverDelayMs <= 0) {
-        TrackRevoker(button, button.PointerEntered(winrt::auto_revoke, [open](wf::IInspectable const&, mux::Input::PointerRoutedEventArgs const&) {
-            open();
-        }));
+        TrackRevoker(
+            button,
+            button.PointerEntered(
+                winrt::auto_revoke,
+                [open](wf::IInspectable const&,
+                       mux::Input::PointerRoutedEventArgs const&) { open(); }));
         return;
     }
 
     mux::DispatcherTimer timer;
     timer.Interval(std::chrono::milliseconds(hoverDelayMs));
 
-    auto tickToken = timer.Tick([open](wf::IInspectable const& sender, wf::IInspectable const&) {
-        if (auto timer = sender.try_as<mux::DispatcherTimer>()) timer.Stop();
-        open();
-    });
+    auto tickToken = timer.Tick(
+        [open](wf::IInspectable const& sender, wf::IInspectable const&) {
+            if (auto timer = sender.try_as<mux::DispatcherTimer>())
+                timer.Stop();
+            open();
+        });
 
     TrackHoverTimer(button, timer, tickToken);
 
-    TrackRevoker(button, button.PointerEntered(winrt::auto_revoke, [timer](wf::IInspectable const&, mux::Input::PointerRoutedEventArgs const&) {
-        timer.Stop();
-        timer.Start();
-    }));
+    TrackRevoker(button,
+                 button.PointerEntered(
+                     winrt::auto_revoke,
+                     [timer](wf::IInspectable const&,
+                             mux::Input::PointerRoutedEventArgs const&) {
+                         timer.Stop();
+                         timer.Start();
+                     }));
 
-    auto stopTimer = [timer](wf::IInspectable const&, mux::Input::PointerRoutedEventArgs const&) { timer.Stop(); };
+    auto stopTimer = [timer](wf::IInspectable const&,
+                             mux::Input::PointerRoutedEventArgs const&) {
+        timer.Stop();
+    };
     TrackRevoker(button, button.PointerExited(winrt::auto_revoke, stopTimer));
     TrackRevoker(button, button.PointerCanceled(winrt::auto_revoke, stopTimer));
 }
@@ -2705,20 +3134,30 @@ void SetUpOpenOnHover(muxc::AppBarButton const& button, int hoverDelayMs, std::f
 std::function<void()> MakeShowFlyoutAction(muxc::AppBarButton const& button) {
     return [weakButton = winrt::make_weak(button)]() {
         auto button = weakButton.get();
-        if (!button || g_unloading) return;
-        if (auto flyout = button.Flyout(); flyout && !flyout.IsOpen()) flyout.ShowAt(button);
+        if (!button || g_unloading)
+            return;
+        if (auto flyout = button.Flyout(); flyout && !flyout.IsOpen())
+            flyout.ShowAt(button);
     };
 }
 
-muxc::AppBarButton CreateMenuButton(ActionItem const& item, int index, bool openOnHover, int hoverDelayMs) {
-    muxc::AppBarButton button = CreateBareButton(index, item.name, item.labelText, MakeCommandButtonIcon(item), item.showLabel);
+muxc::AppBarButton CreateMenuButton(ActionItem const& item,
+                                    int index,
+                                    bool openOnHover,
+                                    int hoverDelayMs) {
+    muxc::AppBarButton button =
+        CreateBareButton(index, item.name, item.labelText,
+                         MakeCommandButtonIcon(item), item.showLabel);
     auto weakButton = winrt::make_weak(button);
 
     muxc::MenuFlyout menu;
-    menu.Placement(muxc::Primitives::FlyoutPlacementMode::BottomEdgeAlignedLeft);
+    menu.Placement(
+        muxc::Primitives::FlyoutPlacementMode::BottomEdgeAlignedLeft);
 
-    auto ensureMenuEntries = [subItems = item.subItems, weakButton](muxc::MenuFlyout const& menu) {
-        if (!menu || menu.Items().Size() > 0) return;
+    auto ensureMenuEntries = [subItems = item.subItems,
+                              weakButton](muxc::MenuFlyout const& menu) {
+        if (!menu || menu.Items().Size() > 0)
+            return;
         try {
             AppendMenuEntries(subItems, menu.Items(), weakButton);
         } catch (...) {
@@ -2726,21 +3165,33 @@ muxc::AppBarButton CreateMenuButton(ActionItem const& item, int index, bool open
         }
     };
 
-    TrackRevoker(menu, menu.Opening(winrt::auto_revoke, [ensureMenuEntries](wf::IInspectable const& sender, wf::IInspectable const&) {
-        ensureMenuEntries(sender.try_as<muxc::MenuFlyout>());
-    }));
+    TrackRevoker(
+        menu,
+        menu.Opening(winrt::auto_revoke,
+                     [ensureMenuEntries](wf::IInspectable const& sender,
+                                         wf::IInspectable const&) {
+                         ensureMenuEntries(sender.try_as<muxc::MenuFlyout>());
+                     }));
 
-    TrackRevoker(button, button.PointerEntered(winrt::auto_revoke, [ensureMenuEntries, weakButton](wf::IInspectable const&, mux::Input::PointerRoutedEventArgs const&) {
-        if (auto btn = weakButton.get()) ensureMenuEntries(btn.Flyout().try_as<muxc::MenuFlyout>());
-    }));
+    TrackRevoker(
+        button,
+        button.PointerEntered(
+            winrt::auto_revoke, [ensureMenuEntries, weakButton](
+                                    wf::IInspectable const&,
+                                    mux::Input::PointerRoutedEventArgs const&) {
+                if (auto btn = weakButton.get())
+                    ensureMenuEntries(btn.Flyout().try_as<muxc::MenuFlyout>());
+            }));
 
     button.Flyout(menu);
-    if (openOnHover) SetUpOpenOnHover(button, hoverDelayMs, MakeShowFlyoutAction(button));
+    if (openOnHover)
+        SetUpOpenOnHover(button, hoverDelayMs, MakeShowFlyoutAction(button));
     return button;
 }
 
 void OpenContextMenuForElement(mux::FrameworkElement const& element) {
-    if (g_unloading || !element) return;
+    if (g_unloading || !element)
+        return;
     HWND hExplorerWnd = GetExplorerWindowForElement(element);
     if (!hExplorerWnd) {
         Wh_Log(L"No File Explorer window for the context menu item");
@@ -2761,20 +3212,28 @@ muxc::AppBarButton CreateContextMenuButton(bool openOnHover, int hoverDelayMs) {
     muxc::AppBarButton button;
     button.Name(kContextMenuButtonName);
     button.Label(settings.buttonLabel.c_str());
-    button.LabelPosition(settings.showLabel ? muxc::CommandBarLabelPosition::Default : muxc::CommandBarLabelPosition::Collapsed);
-    button.Icon(CreateIconElement(settings.buttonIcon, std::wstring(), L"\uE8FD"));
+    button.LabelPosition(settings.showLabel
+                             ? muxc::CommandBarLabelPosition::Default
+                             : muxc::CommandBarLabelPosition::Collapsed);
+    button.Icon(
+        CreateIconElement(settings.buttonIcon, std::wstring(), L"\uE8FD"));
 
     if (!settings.showLabel && !settings.buttonLabel.empty()) {
-        muxc::ToolTipService::SetToolTip(button, winrt::box_value(winrt::hstring{settings.buttonLabel}));
+        muxc::ToolTipService::SetToolTip(
+            button, winrt::box_value(winrt::hstring{settings.buttonLabel}));
     }
 
-    TrackRevoker(button, button.Click(winrt::auto_revoke, [](wf::IInspectable const& sender, mux::RoutedEventArgs const&) {
-        OpenContextMenuForElement(sender.try_as<mux::FrameworkElement>());
-    }));
+    TrackRevoker(
+        button,
+        button.Click(winrt::auto_revoke, [](wf::IInspectable const& sender,
+                                            mux::RoutedEventArgs const&) {
+            OpenContextMenuForElement(sender.try_as<mux::FrameworkElement>());
+        }));
 
     if (openOnHover) {
         auto open = [weakButton = winrt::make_weak(button)]() {
-            if (auto button = weakButton.get()) OpenContextMenuForElement(button);
+            if (auto button = weakButton.get())
+                OpenContextMenuForElement(button);
         };
         SetUpOpenOnHover(button, hoverDelayMs, open);
     }
@@ -2782,7 +3241,9 @@ muxc::AppBarButton CreateContextMenuButton(bool openOnHover, int hoverDelayMs) {
     return button;
 }
 
-void PopulateNewPlusMenu(muxc::MenuFlyout const& menu, winrt::weak_ref<muxc::AppBarButton> const& weakButton) try {
+void PopulateNewPlusMenu(
+    muxc::MenuFlyout const& menu,
+    winrt::weak_ref<muxc::AppBarButton> const& weakButton) try {
     auto items = menu.Items();
     items.Clear();
 
@@ -2791,7 +3252,9 @@ void PopulateNewPlusMenu(muxc::MenuFlyout const& menu, winrt::weak_ref<muxc::App
 
     if (templates.empty()) {
         muxc::MenuFlyoutItem placeholder;
-        placeholder.Text(DirectoryExists(config.templateFolder) ? L"No templates" : L"Templates folder not found");
+        placeholder.Text(DirectoryExists(config.templateFolder)
+                             ? L"No templates"
+                             : L"Templates folder not found");
         placeholder.IsEnabled(false);
         items.Append(placeholder);
     }
@@ -2808,35 +3271,54 @@ void PopulateNewPlusMenu(muxc::MenuFlyout const& menu, winrt::weak_ref<muxc::App
             }
         }
         if (entry.displayName != entry.fileName) {
-            muxc::ToolTipService::SetToolTip(menuItem, winrt::box_value(winrt::hstring{entry.fileName}));
+            muxc::ToolTipService::SetToolTip(
+                menuItem, winrt::box_value(winrt::hstring{entry.fileName}));
         }
 
-        TrackRevoker(menuItem, menuItem.Click(winrt::auto_revoke, [entry, replaceVariables, weakButton](wf::IInspectable const&, mux::RoutedEventArgs const&) {
-            if (g_unloading) return;
-            auto button = weakButton.get();
-            if (!button) return;
-            HWND hWnd = GetExplorerWindowForElement(button);
-            RunShellWorkOnWorkerThread([hWnd, entry, replaceVariables]() {
-                CreateFromTemplateForWindow(hWnd, entry, replaceVariables);
-            });
-        }));
+        TrackRevoker(
+            menuItem,
+            menuItem.Click(
+                winrt::auto_revoke,
+                [entry, replaceVariables, weakButton](
+                    wf::IInspectable const&, mux::RoutedEventArgs const&) {
+                    if (g_unloading)
+                        return;
+                    auto button = weakButton.get();
+                    if (!button)
+                        return;
+                    HWND hWnd = GetExplorerWindowForElement(button);
+                    RunShellWorkOnWorkerThread(
+                        [hWnd, entry, replaceVariables]() {
+                            CreateFromTemplateForWindow(hWnd, entry,
+                                                        replaceVariables);
+                        });
+                }));
 
         items.Append(menuItem);
     }
 
     if (config.showTemplatesFolderItem) {
-        if (!templates.empty()) items.Append(muxc::MenuFlyoutSeparator());
+        if (!templates.empty())
+            items.Append(muxc::MenuFlyoutSeparator());
         muxc::MenuFlyoutItem openFolderItem;
         openFolderItem.Text(L"Open templates folder");
         openFolderItem.Icon(CreateGlyphIcon(L""));
 
-        TrackRevoker(openFolderItem, openFolderItem.Click(winrt::auto_revoke, [folder = config.templateFolder](wf::IInspectable const&, mux::RoutedEventArgs const&) {
-            if (g_unloading) return;
-            RunShellWorkOnWorkerThread([folder]() {
-                if (!DirectoryExists(folder)) SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
-                ShellExecuteW(nullptr, L"open", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-            });
-        }));
+        TrackRevoker(openFolderItem,
+                     openFolderItem.Click(
+                         winrt::auto_revoke, [folder = config.templateFolder](
+                                                 wf::IInspectable const&,
+                                                 mux::RoutedEventArgs const&) {
+                             if (g_unloading)
+                                 return;
+                             RunShellWorkOnWorkerThread([folder]() {
+                                 if (!DirectoryExists(folder))
+                                     SHCreateDirectoryExW(
+                                         nullptr, folder.c_str(), nullptr);
+                                 ShellExecuteW(nullptr, L"open", folder.c_str(),
+                                               nullptr, nullptr, SW_SHOWNORMAL);
+                             });
+                         }));
 
         items.Append(openFolderItem);
     }
@@ -2845,14 +3327,16 @@ void PopulateNewPlusMenu(muxc::MenuFlyout const& menu, winrt::weak_ref<muxc::App
 }
 
 void AddNewPlusChevron(muxc::AppBarButton const& button) try {
-    auto label = FindDescendantByName(button, L"TextLabel").try_as<muxc::TextBlock>();
+    auto label =
+        FindDescendantByName(button, L"TextLabel").try_as<muxc::TextBlock>();
     if (!label) {
         Wh_Log(L"The New+ label wasn't found");
         return;
     }
 
     std::wstring currentText = label.Text().c_str();
-    if (!currentText.empty() && currentText.back() == L'\uE70D') return;
+    if (!currentText.empty() && currentText.back() == L'\uE70D')
+        return;
 
     auto inlines = label.Inlines();
     inlines.Clear();
@@ -2872,7 +3356,9 @@ void AddNewPlusChevron(muxc::AppBarButton const& button) try {
     Wh_Log(L"Error %08X", winrt::to_hresult().value);
 }
 
-muxc::AppBarButton CreateNewPlusButton(std::wstring const& originalIconUri, bool openOnHover, int hoverDelayMs) {
+muxc::AppBarButton CreateNewPlusButton(std::wstring const& originalIconUri,
+                                       bool openOnHover,
+                                       int hoverDelayMs) {
     NewPlusSettings settings;
     {
         std::lock_guard<std::mutex> lock(g_settings.mutex);
@@ -2883,39 +3369,56 @@ muxc::AppBarButton CreateNewPlusButton(std::wstring const& originalIconUri, bool
     muxc::AppBarButton button;
     button.Name(kNewPlusButtonName);
     button.Label(settings.buttonLabel.c_str());
-    button.LabelPosition(showLabel ? muxc::CommandBarLabelPosition::Default : muxc::CommandBarLabelPosition::Collapsed);
+    button.LabelPosition(showLabel ? muxc::CommandBarLabelPosition::Default
+                                   : muxc::CommandBarLabelPosition::Collapsed);
     button.Icon(MakeNewPlusButtonIcon(settings.buttonIcon, originalIconUri));
 
     if (showLabel) {
-        TrackRevoker(button, button.Loaded(winrt::auto_revoke, [](wf::IInspectable const& sender, mux::RoutedEventArgs const&) {
-            if (auto button = sender.try_as<muxc::AppBarButton>()) AddNewPlusChevron(button);
-        }));
+        TrackRevoker(
+            button,
+            button.Loaded(winrt::auto_revoke, [](wf::IInspectable const& sender,
+                                                 mux::RoutedEventArgs const&) {
+                if (auto button = sender.try_as<muxc::AppBarButton>())
+                    AddNewPlusChevron(button);
+            }));
     }
 
     if (!showLabel && !settings.buttonLabel.empty()) {
-        muxc::ToolTipService::SetToolTip(button, winrt::box_value(winrt::hstring{settings.buttonLabel}));
+        muxc::ToolTipService::SetToolTip(
+            button, winrt::box_value(winrt::hstring{settings.buttonLabel}));
     }
 
     auto weakButton = winrt::make_weak(button);
     muxc::MenuFlyout menu;
-    menu.Placement(muxc::Primitives::FlyoutPlacementMode::BottomEdgeAlignedLeft);
+    menu.Placement(
+        muxc::Primitives::FlyoutPlacementMode::BottomEdgeAlignedLeft);
 
-    TrackRevoker(menu, menu.Opening(winrt::auto_revoke, [weakButton](wf::IInspectable const& sender, wf::IInspectable const&) {
-        if (g_unloading) return;
-        if (auto menu = sender.try_as<muxc::MenuFlyout>()) PopulateNewPlusMenu(menu, weakButton);
-    }));
+    TrackRevoker(
+        menu,
+        menu.Opening(winrt::auto_revoke,
+                     [weakButton](wf::IInspectable const& sender,
+                                  wf::IInspectable const&) {
+                         if (g_unloading)
+                             return;
+                         if (auto menu = sender.try_as<muxc::MenuFlyout>())
+                             PopulateNewPlusMenu(menu, weakButton);
+                     }));
 
     button.Flyout(menu);
-    if (openOnHover) SetUpOpenOnHover(button, hoverDelayMs, MakeShowFlyoutAction(button));
+    if (openOnHover)
+        SetUpOpenOnHover(button, hoverDelayMs, MakeShowFlyoutAction(button));
     return button;
 }
 
 void EnsureActionButtons(muxc::CommandBar const& commandBar) {
-    if (g_unloading) return;
+    if (g_unloading)
+        return;
     if (HasElement(commandBar, [](muxc::ICommandBarElement const& command) {
-        auto element = command.try_as<mux::FrameworkElement>();
-        return element && std::wstring_view(element.Name()).starts_with(kButtonNamePrefix);
-    })) return;
+            auto element = command.try_as<mux::FrameworkElement>();
+            return element && std::wstring_view(element.Name())
+                                  .starts_with(kButtonNamePrefix);
+        }))
+        return;
 
     bool openMenuOnHover;
     int menuHoverDelay;
@@ -2927,7 +3430,8 @@ void EnsureActionButtons(muxc::CommandBar const& commandBar) {
         items = g_settings.items;
     }
 
-    if (items.empty()) return;
+    if (items.empty())
+        return;
 
     Wh_Log(L"Adding %zu items to command bar", items.size());
     auto commands = commandBar.PrimaryCommands();
@@ -2937,9 +3441,13 @@ void EnsureActionButtons(muxc::CommandBar const& commandBar) {
         for (size_t i = 0; i < items.size(); i++) {
             auto const& item = items[i];
             if (item.isMenu && !item.subItems.empty()) {
-                commands.InsertAt(insertIndex++, CreateMenuButton(item, (int)i, openMenuOnHover, menuHoverDelay));
+                commands.InsertAt(
+                    insertIndex++,
+                    CreateMenuButton(item, (int)i, openMenuOnHover,
+                                     menuHoverDelay));
             } else {
-                commands.InsertAt(insertIndex++, CreateActionButton(item, (int)i));
+                commands.InsertAt(insertIndex++,
+                                  CreateActionButton(item, (int)i));
             }
 
             if (item.separatorAfter) {
@@ -2957,7 +3465,8 @@ void EnsureActionButtons(muxc::CommandBar const& commandBar) {
     for (size_t i = 0; i < items.size(); i++) {
         auto const& item = items[i];
         if (item.isMenu && !item.subItems.empty()) {
-            commands.Append(CreateMenuButton(item, (int)i, openMenuOnHover, menuHoverDelay));
+            commands.Append(CreateMenuButton(item, (int)i, openMenuOnHover,
+                                             menuHoverDelay));
         } else {
             commands.Append(CreateActionButton(item, (int)i));
         }
@@ -2983,17 +3492,21 @@ void EnsureContextMenuButton(muxc::CommandBar const& commandBar) {
         menuHoverDelay = g_settings.menuHoverDelay;
     }
 
-    if (!enabled || HasElement(commandBar, [](muxc::ICommandBarElement const& command) {
-        auto element = command.try_as<mux::FrameworkElement>();
-        return element && element.Name() == kContextMenuButtonName;
-    })) return;
+    if (!enabled ||
+        HasElement(commandBar, [](muxc::ICommandBarElement const& command) {
+            auto element = command.try_as<mux::FrameworkElement>();
+            return element && element.Name() == kContextMenuButtonName;
+        }))
+        return;
 
     Wh_Log(L"Adding the context menu item");
-    commandBar.PrimaryCommands().Append(CreateContextMenuButton(openMenuOnHover, menuHoverDelay));
+    commandBar.PrimaryCommands().Append(
+        CreateContextMenuButton(openMenuOnHover, menuHoverDelay));
 }
 
 void EnsureNewPlusButton(muxc::CommandBar const& commandBar) {
-    if (g_unloading) return;
+    if (g_unloading)
+        return;
     bool openMenuOnHover, enabled;
     int menuHoverDelay;
     {
@@ -3003,7 +3516,8 @@ void EnsureNewPlusButton(muxc::CommandBar const& commandBar) {
         menuHoverDelay = g_settings.menuHoverDelay;
     }
 
-    if (!enabled || HasElement(commandBar, IsOurNewPlusButton)) return;
+    if (!enabled || HasElement(commandBar, IsOurNewPlusButton))
+        return;
 
     auto commands = commandBar.PrimaryCommands();
     uint32_t count = commands.Size();
@@ -3012,8 +3526,10 @@ void EnsureNewPlusButton(muxc::CommandBar const& commandBar) {
 
     for (uint32_t i = 0; i < count; i++) {
         auto command = commands.GetAt(i);
-        if (IsOurElement(command)) continue;
-        if (auto button = command.try_as<muxc::AppBarButton>(); button && IdentifyDefaultButton(button) == kNewButtonIndex) {
+        if (IsOurElement(command))
+            continue;
+        if (auto button = command.try_as<muxc::AppBarButton>();
+            button && IdentifyDefaultButton(button) == kNewButtonIndex) {
             newButtonIndex = i;
             originalIconUri = GetButtonIconUri(button);
             break;
@@ -3026,11 +3542,14 @@ void EnsureNewPlusButton(muxc::CommandBar const& commandBar) {
     }
 
     Wh_Log(L"Adding the New+ button");
-    commands.InsertAt(newButtonIndex, CreateNewPlusButton(originalIconUri, openMenuOnHover, menuHoverDelay));
+    commands.InsertAt(
+        newButtonIndex,
+        CreateNewPlusButton(originalIconUri, openMenuOnHover, menuHoverDelay));
 }
 
 void UpdateCommandBar(muxc::CommandBar const& commandBar) {
-    if (g_unloading) return;
+    if (g_unloading)
+        return;
 
     bool placeOnSecondary;
     {
@@ -3046,7 +3565,8 @@ void UpdateCommandBar(muxc::CommandBar const& commandBar) {
         EnsureContextMenuButton(commandBar);
     } else if (commandBar.Name() == L"FileExplorerSecondaryCommandBar") {
         if (placeOnSecondary) {
-            commandBar.DefaultLabelPosition(muxc::CommandBarDefaultLabelPosition::Right);
+            commandBar.DefaultLabelPosition(
+                muxc::CommandBarDefaultLabelPosition::Right);
             EnsureActionButtons(commandBar);
         }
     }
@@ -3058,7 +3578,8 @@ void RemoveOurButtons(muxc::CommandBar const& commandBar) {
     auto commands = commandBar.PrimaryCommands();
     for (uint32_t i = commands.Size(); i > 0; i--) {
         auto command = commands.GetAt(i - 1);
-        if (!IsOurElement(command)) continue;
+        if (!IsOurElement(command))
+            continue;
 
         if (auto button = command.try_as<muxc::AppBarButton>()) {
             if (auto flyout = button.Flyout()) {
@@ -3075,35 +3596,43 @@ void RemoveOurButtons(muxc::CommandBar const& commandBar) {
 
 void OnCommandBarAdded(muxc::CommandBar const& commandBar) {
     for (auto it = g_entries.begin(); it != g_entries.end();) {
-        if (!it->commandBar.get()) it = g_entries.erase(it);
-        else ++it;
+        if (!it->commandBar.get())
+            it = g_entries.erase(it);
+        else
+            ++it;
     }
 
     for (auto const& entry : g_entries) {
-        if (entry.commandBar.get() == commandBar) return;
+        if (entry.commandBar.get() == commandBar)
+            return;
     }
 
     CommandBarEntry entry;
     entry.commandBar = winrt::make_weak(commandBar);
 
-    TrackRevoker(commandBar, commandBar.ActualThemeChanged(winrt::auto_revoke, [](mux::FrameworkElement const& sender, wf::IInspectable const&) {
-        if (g_unloading) return;
+    TrackRevoker(
+        commandBar,
+        commandBar.ActualThemeChanged(
+            winrt::auto_revoke,
+            [](mux::FrameworkElement const& sender, wf::IInspectable const&) {
+                if (g_unloading)
+                    return;
 
-        // Clear icon cache so new theme icons are decoded
-        {
-            std::lock_guard<std::mutex> lock(g_iconCacheMutex);
-            g_iconCache.clear();
-        }
+                // Clear icon cache so new theme icons are decoded
+                {
+                    std::lock_guard<std::mutex> lock(g_iconCacheMutex);
+                    g_iconCache.clear();
+                }
 
-        if (auto cb = sender.try_as<muxc::CommandBar>()) {
-            try {
-                RemoveOurButtons(cb);
-                UpdateCommandBar(cb);
-            } catch (...) {
-                Wh_Log(L"Error %08X", winrt::to_hresult().value);
-            }
-        }
-    }));
+                if (auto cb = sender.try_as<muxc::CommandBar>()) {
+                    try {
+                        RemoveOurButtons(cb);
+                        UpdateCommandBar(cb);
+                    } catch (...) {
+                        Wh_Log(L"Error %08X", winrt::to_hresult().value);
+                    }
+                }
+            }));
 
     g_entries.push_back(std::move(entry));
     UpdateCommandBar(commandBar);
@@ -3119,10 +3648,12 @@ void RemoveButtonsForCurrentThread() {
 
     for (auto& entry : taken) {
         auto commandBar = entry.commandBar.get();
-        if (!commandBar) continue;
+        if (!commandBar)
+            continue;
         try {
             commandBar.Loaded(entry.loadedToken);
-            commandBar.PrimaryCommands().VectorChanged(entry.vectorChangedToken);
+            commandBar.PrimaryCommands().VectorChanged(
+                entry.vectorChangedToken);
             RemoveOurButtons(commandBar);
             ApplyDefaultButtonVisibility(commandBar, true);
         } catch (...) {
@@ -3141,11 +3672,13 @@ void RefreshButtonsForCurrentThread() {
     RevokeHandlersForCurrentThread();
 
     std::vector<winrt::weak_ref<muxc::CommandBar>> commandBars;
-    for (auto const& entry : g_entries) commandBars.push_back(entry.commandBar);
+    for (auto const& entry : g_entries)
+        commandBars.push_back(entry.commandBar);
 
     for (auto const& weakCommandBar : commandBars) {
         auto commandBar = weakCommandBar.get();
-        if (!commandBar) continue;
+        if (!commandBar)
+            continue;
         try {
             RemoveOurButtons(commandBar);
             UpdateCommandBar(commandBar);
@@ -3156,25 +3689,33 @@ void RefreshButtonsForCurrentThread() {
 }
 
 bool IsTargetCommandBarName(std::wstring_view name) {
-    return name == L"FileExplorerCommandBar" || name == L"FileExplorerSecondaryCommandBar";
+    return name == L"FileExplorerCommandBar" ||
+           name == L"FileExplorerSecondaryCommandBar";
 }
 
 bool FoundAllCommandBars(std::vector<muxc::CommandBar> const& commandBars) {
     bool primary = false, secondary = false;
     for (auto const& commandBar : commandBars) {
-        if (commandBar.Name() == L"FileExplorerCommandBar") primary = true;
-        else if (commandBar.Name() == L"FileExplorerSecondaryCommandBar") secondary = true;
+        if (commandBar.Name() == L"FileExplorerCommandBar")
+            primary = true;
+        else if (commandBar.Name() == L"FileExplorerSecondaryCommandBar")
+            secondary = true;
     }
     return primary && secondary;
 }
 
-void CollectCommandBars(mux::DependencyObject const& root, int depth, std::vector<muxc::CommandBar>* commandBars) {
-    if (depth > 64) return;
+void CollectCommandBars(mux::DependencyObject const& root,
+                        int depth,
+                        std::vector<muxc::CommandBar>* commandBars) {
+    if (depth > 64)
+        return;
     int count = muxm::VisualTreeHelper::GetChildrenCount(root);
     for (int i = 0; i < count; i++) {
-        if (FoundAllCommandBars(*commandBars)) return;
+        if (FoundAllCommandBars(*commandBars))
+            return;
         auto child = muxm::VisualTreeHelper::GetChild(root, i);
-        if (auto commandBar = child.try_as<muxc::CommandBar>(); commandBar && IsTargetCommandBarName(commandBar.Name())) {
+        if (auto commandBar = child.try_as<muxc::CommandBar>();
+            commandBar && IsTargetCommandBarName(commandBar.Name())) {
             commandBars->push_back(std::move(commandBar));
             continue;
         }
@@ -3183,29 +3724,37 @@ void CollectCommandBars(mux::DependencyObject const& root, int depth, std::vecto
 }
 
 void ScanXamlRootForCommandBars(mux::UIElement const& element) try {
-    if (g_unloading || !element) return;
+    if (g_unloading || !element)
+        return;
     auto xamlRoot = element.XamlRoot();
-    if (!xamlRoot) return;
+    if (!xamlRoot)
+        return;
     auto content = xamlRoot.Content();
-    if (!content) return;
+    if (!content)
+        return;
 
     std::vector<muxc::CommandBar> commandBars;
     CollectCommandBars(content, 0, &commandBars);
-    for (auto const& commandBar : commandBars) OnCommandBarAdded(commandBar);
-    if (!commandBars.empty()) g_threadScanned = true;
+    for (auto const& commandBar : commandBars)
+        OnCommandBarAdded(commandBar);
+    if (!commandBars.empty())
+        g_threadScanned = true;
 } catch (...) {
     Wh_Log(L"Error %08X", winrt::to_hresult().value);
 }
 
 void ScheduleXamlRootScan(mux::UIElement const& element) try {
-    if (g_unloading || !element) return;
-    auto dispatcherQueue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    if (g_unloading || !element)
+        return;
+    auto dispatcherQueue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::
+        GetForCurrentThread();
     if (!dispatcherQueue) {
         ScanXamlRootForCommandBars(element);
         return;
     }
     dispatcherQueue.TryEnqueue([weakElement = winrt::make_weak(element)]() {
-        if (auto element = weakElement.get()) ScanXamlRootForCommandBars(element);
+        if (auto element = weakElement.get())
+            ScanXamlRootForCommandBars(element);
     });
 } catch (...) {
     Wh_Log(L"Error %08X", winrt::to_hresult().value);
@@ -3213,13 +3762,15 @@ void ScheduleXamlRootScan(mux::UIElement const& element) try {
 
 muxc::CommandBar GetKnownCommandBarForCurrentThread() {
     for (auto const& entry : g_entries) {
-        if (auto commandBar = entry.commandBar.get()) return commandBar;
+        if (auto commandBar = entry.commandBar.get())
+            return commandBar;
     }
     return nullptr;
 }
 
 void ScanCurrentThreadForCommandBars() try {
-    if (g_unloading) return;
+    if (g_unloading)
+        return;
     if (auto knownCommandBar = GetKnownCommandBarForCurrentThread()) {
         ScanXamlRootForCommandBars(knownCommandBar);
         return;
@@ -3227,7 +3778,8 @@ void ScanCurrentThreadForCommandBars() try {
     auto focused = mux::Input::FocusManager::GetFocusedElement();
     auto element = focused ? focused.try_as<mux::UIElement>() : nullptr;
     if (!element) {
-        Wh_Log(L"No XAML element to start from on thread %u", GetCurrentThreadId());
+        Wh_Log(L"No XAML element to start from on thread %u",
+               GetCurrentThreadId());
         return;
     }
     ScanXamlRootForCommandBars(element);
@@ -3236,8 +3788,10 @@ void ScanCurrentThreadForCommandBars() try {
 }
 
 void ScheduleCurrentThreadScan() try {
-    if (g_unloading) return;
-    auto dispatcherQueue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+    if (g_unloading)
+        return;
+    auto dispatcherQueue = winrt::Microsoft::UI::Dispatching::DispatcherQueue::
+        GetForCurrentThread();
     if (!dispatcherQueue) {
         ScanCurrentThreadForCommandBars();
         return;
@@ -3247,18 +3801,23 @@ void ScheduleCurrentThreadScan() try {
     Wh_Log(L"Error %08X", winrt::to_hresult().value);
 }
 
-using CommandBarManager_CommandBar_t = void(WINAPI*)(void* pThis, void* commandBar);
+using CommandBarManager_CommandBar_t = void(WINAPI*)(void* pThis,
+                                                     void* commandBar);
 CommandBarManager_CommandBar_t CommandBarManager_CommandBar_Original;
 
 void WINAPI CommandBarManager_CommandBar_Hook(void* pThis, void* commandBar) {
     Wh_Log(L">");
     CommandBarManager_CommandBar_Original(pThis, commandBar);
-    if (g_unloading || !commandBar) return;
+    if (g_unloading || !commandBar)
+        return;
     try {
         EnsureContextMenuOwnerWindow();
-        auto const& element = *reinterpret_cast<muxc::CommandBar const*>(commandBar);
-        if (!element) return;
-        Wh_Log(L"Command bar %s, thread %u", element.Name().c_str(), GetCurrentThreadId());
+        auto const& element =
+            *reinterpret_cast<muxc::CommandBar const*>(commandBar);
+        if (!element)
+            return;
+        Wh_Log(L"Command bar %s, thread %u", element.Name().c_str(),
+               GetCurrentThreadId());
         OnCommandBarAdded(element);
         ScheduleXamlRootScan(element);
     } catch (...) {
@@ -3268,7 +3827,8 @@ void WINAPI CommandBarManager_CommandBar_Hook(void* pThis, void* commandBar) {
 
 using CommandBarControl_OnApplyTemplate_t = void(WINAPI*)(void* pThis);
 CommandBarControl_OnApplyTemplate_t CommandBarControl_OnApplyTemplate_Original;
-CommandBarControl_OnApplyTemplate_t CommandBarControl_Wave1_OnApplyTemplate_Original;
+CommandBarControl_OnApplyTemplate_t
+    CommandBarControl_Wave1_OnApplyTemplate_Original;
 
 void WINAPI CommandBarControl_OnApplyTemplate_Hook(void* pThis) {
     Wh_Log(L">");
@@ -3282,16 +3842,23 @@ void WINAPI CommandBarControl_Wave1_OnApplyTemplate_Hook(void* pThis) {
     ScheduleCurrentThreadScan();
 }
 
-using CommandBarControl_GotFocusHandler_t = void(WINAPI*)(void* pThis, void* sender, void* args);
+using CommandBarControl_GotFocusHandler_t = void(WINAPI*)(void* pThis,
+                                                          void* sender,
+                                                          void* args);
 CommandBarControl_GotFocusHandler_t CommandBarControl_GotFocusHandler_Original;
-CommandBarControl_GotFocusHandler_t CommandBarControl_Wave1_GotFocusHandler_Original;
+CommandBarControl_GotFocusHandler_t
+    CommandBarControl_Wave1_GotFocusHandler_Original;
 
 void HandleCommandBarControlGotFocus(void* sender) {
-    if (g_unloading || !sender) return;
-    if (g_threadScanned && GetKnownCommandBarForCurrentThread()) return;
+    if (g_unloading || !sender)
+        return;
+    if (g_threadScanned && GetKnownCommandBarForCurrentThread())
+        return;
     try {
-        auto const& inspectable = *reinterpret_cast<wf::IInspectable const*>(sender);
-        if (auto element = inspectable ? inspectable.try_as<mux::UIElement>() : nullptr) {
+        auto const& inspectable =
+            *reinterpret_cast<wf::IInspectable const*>(sender);
+        if (auto element =
+                inspectable ? inspectable.try_as<mux::UIElement>() : nullptr) {
             ScanXamlRootForCommandBars(element);
         }
     } catch (...) {
@@ -3299,12 +3866,16 @@ void HandleCommandBarControlGotFocus(void* sender) {
     }
 }
 
-void WINAPI CommandBarControl_GotFocusHandler_Hook(void* pThis, void* sender, void* args) {
+void WINAPI CommandBarControl_GotFocusHandler_Hook(void* pThis,
+                                                   void* sender,
+                                                   void* args) {
     CommandBarControl_GotFocusHandler_Original(pThis, sender, args);
     HandleCommandBarControlGotFocus(sender);
 }
 
-void WINAPI CommandBarControl_Wave1_GotFocusHandler_Hook(void* pThis, void* sender, void* args) {
+void WINAPI CommandBarControl_Wave1_GotFocusHandler_Hook(void* pThis,
+                                                         void* sender,
+                                                         void* args) {
     CommandBarControl_Wave1_GotFocusHandler_Original(pThis, sender, args);
     HandleCommandBarControlGotFocus(sender);
 }
@@ -3366,7 +3937,8 @@ SymbolHookResult HookFileExplorerExtensionsSymbols(HMODULE module) {
         },
     };
 
-    if (!HookSymbols(module, fileExplorerExtensionsDllHooks, ARRAYSIZE(fileExplorerExtensionsDllHooks))) {
+    if (!HookSymbols(module, fileExplorerExtensionsDllHooks,
+                     ARRAYSIZE(fileExplorerExtensionsDllHooks))) {
         Wh_Log(L"HookSymbols failed");
         return SymbolHookResult::ResolutionFailed;
     }
@@ -3386,10 +3958,13 @@ HMODULE GetFileExplorerExtensionsModuleHandle() {
 }
 
 bool HookFileExplorerExtensionsIfLoaded(bool applyHooks) {
-    if (g_symbolsHooked) return true;
+    if (g_symbolsHooked)
+        return true;
     HMODULE module = GetFileExplorerExtensionsModuleHandle();
-    if (!module) return true;
-    if (g_symbolsHooked.exchange(true)) return true;
+    if (!module)
+        return true;
+    if (g_symbolsHooked.exchange(true))
+        return true;
 
     Wh_Log(L"Hooking FileExplorerExtensions.dll");
     switch (HookFileExplorerExtensionsSymbols(module)) {
@@ -3402,19 +3977,24 @@ bool HookFileExplorerExtensionsIfLoaded(bool applyHooks) {
             return false;
     }
 
-    if (applyHooks) Wh_ApplyHookOperations();
+    if (applyHooks)
+        Wh_ApplyHookOperations();
     return true;
 }
 
 using LoadLibraryExW_t = decltype(&LoadLibraryExW);
 LoadLibraryExW_t LoadLibraryExW_Original;
-HMODULE WINAPI LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags) {
+HMODULE WINAPI LoadLibraryExW_Hook(LPCWSTR lpLibFileName,
+                                   HANDLE hFile,
+                                   DWORD dwFlags) {
     HMODULE module = LoadLibraryExW_Original(lpLibFileName, hFile, dwFlags);
-    if (!module || g_unloading || !lpLibFileName) return module;
+    if (!module || g_unloading || !lpLibFileName)
+        return module;
 
     PCWSTR fileName = lpLibFileName;
     for (PCWSTR p = lpLibFileName; *p; p++) {
-        if (*p == L'\\' || *p == L'/') fileName = p + 1;
+        if (*p == L'\\' || *p == L'/')
+            fileName = p + 1;
     }
 
     if (_wcsicmp(fileName, L"FileExplorerExtensions.dll") == 0 ||
@@ -3426,8 +4006,11 @@ HMODULE WINAPI LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dw
 
 using RunFromWindowThreadProc_t = void(WINAPI*)(PVOID parameter);
 
-bool RunFromWindowThread(HWND hWnd, RunFromWindowThreadProc_t proc, PVOID procParam) {
-    static const UINT runFromWindowThreadRegisteredMsg = RegisterWindowMessage(L"Windhawk_RunFromWindowThread_" WH_MOD_ID);
+bool RunFromWindowThread(HWND hWnd,
+                         RunFromWindowThreadProc_t proc,
+                         PVOID procParam) {
+    static const UINT runFromWindowThreadRegisteredMsg =
+        RegisterWindowMessage(L"Windhawk_RunFromWindowThread_" WH_MOD_ID);
 
     struct RUN_FROM_WINDOW_THREAD_PARAM {
         RunFromWindowThreadProc_t proc;
@@ -3435,7 +4018,8 @@ bool RunFromWindowThread(HWND hWnd, RunFromWindowThreadProc_t proc, PVOID procPa
     };
 
     DWORD dwThreadId = GetWindowThreadProcessId(hWnd, nullptr);
-    if (dwThreadId == 0) return false;
+    if (dwThreadId == 0)
+        return false;
     if (dwThreadId == GetCurrentThreadId()) {
         proc(procParam);
         return true;
@@ -3447,7 +4031,8 @@ bool RunFromWindowThread(HWND hWnd, RunFromWindowThreadProc_t proc, PVOID procPa
             if (nCode == HC_ACTION) {
                 const CWPSTRUCT* cwp = (const CWPSTRUCT*)lParam;
                 if (cwp->message == runFromWindowThreadRegisteredMsg) {
-                    RUN_FROM_WINDOW_THREAD_PARAM* param = (RUN_FROM_WINDOW_THREAD_PARAM*)cwp->lParam;
+                    RUN_FROM_WINDOW_THREAD_PARAM* param =
+                        (RUN_FROM_WINDOW_THREAD_PARAM*)cwp->lParam;
                     param->proc(param->procParam);
                 }
             }
@@ -3455,7 +4040,8 @@ bool RunFromWindowThread(HWND hWnd, RunFromWindowThreadProc_t proc, PVOID procPa
         },
         nullptr, dwThreadId);
 
-    if (!hook) return false;
+    if (!hook)
+        return false;
 
     RUN_FROM_WINDOW_THREAD_PARAM param;
     param.proc = proc;
@@ -3467,16 +4053,21 @@ bool RunFromWindowThread(HWND hWnd, RunFromWindowThreadProc_t proc, PVOID procPa
 
 std::vector<HWND> GetFileExplorerWnds() {
     std::vector<HWND> hWnds;
-    EnumWindows([](HWND hWnd, LPARAM lParam) -> BOOL {
-        auto& list = *(std::vector<HWND>*)lParam;
-        DWORD dwProcessId = 0;
-        if (!GetWindowThreadProcessId(hWnd, &dwProcessId) || dwProcessId != GetCurrentProcessId()) return TRUE;
-        WCHAR className[64];
-        if (GetClassName(hWnd, className, ARRAYSIZE(className)) && _wcsicmp(className, L"CabinetWClass") == 0) {
-            list.push_back(hWnd);
-        }
-        return TRUE;
-    }, (LPARAM)&hWnds);
+    EnumWindows(
+        [](HWND hWnd, LPARAM lParam) -> BOOL {
+            auto& list = *(std::vector<HWND>*)lParam;
+            DWORD dwProcessId = 0;
+            if (!GetWindowThreadProcessId(hWnd, &dwProcessId) ||
+                dwProcessId != GetCurrentProcessId())
+                return TRUE;
+            WCHAR className[64];
+            if (GetClassName(hWnd, className, ARRAYSIZE(className)) &&
+                _wcsicmp(className, L"CabinetWClass") == 0) {
+                list.push_back(hWnd);
+            }
+            return TRUE;
+        },
+        (LPARAM)&hWnds);
     return hWnds;
 }
 
@@ -3485,8 +4076,10 @@ constexpr int kMaxMenuDepth = 2;
 ActionItem LoadActionItem(PCWSTR prefix, int depth, bool* isEmpty) {
     auto name = WindhawkUtils::StringSetting::make(L"%s.name", prefix);
     auto command = WindhawkUtils::StringSetting::make(L"%s.command", prefix);
-    auto parameters = WindhawkUtils::StringSetting::make(L"%s.parameters", prefix);
-    auto iconGlyph = WindhawkUtils::StringSetting::make(L"%s.iconGlyph", prefix);
+    auto parameters =
+        WindhawkUtils::StringSetting::make(L"%s.parameters", prefix);
+    auto iconGlyph =
+        WindhawkUtils::StringSetting::make(L"%s.iconGlyph", prefix);
 
     ActionItem item;
     item.name = name.get();
@@ -3503,15 +4096,19 @@ ActionItem LoadActionItem(PCWSTR prefix, int depth, bool* isEmpty) {
         item.isMenu = wcscmp(type.get(), L"menu") == 0;
         for (int i = 0; i < 100; i++) {
             WCHAR subPrefix[256];
-            swprintf(subPrefix, ARRAYSIZE(subPrefix), L"%s.subItems[%d]", prefix, i);
+            swprintf(subPrefix, ARRAYSIZE(subPrefix), L"%s.subItems[%d]",
+                     prefix, i);
             bool subEmpty = false;
-            ActionItem subItem = LoadActionItem(subPrefix, depth + 1, &subEmpty);
-            if (subEmpty) break;
+            ActionItem subItem =
+                LoadActionItem(subPrefix, depth + 1, &subEmpty);
+            if (subEmpty)
+                break;
             item.subItems.push_back(std::move(subItem));
         }
     }
 
-    *isEmpty = item.name.empty() && item.command.empty() && item.subItems.empty();
+    *isEmpty =
+        item.name.empty() && item.command.empty() && item.subItems.empty();
     return item;
 }
 
@@ -3523,22 +4120,31 @@ void LoadSettings() {
 
     std::lock_guard<std::mutex> lock(g_settings.mutex);
 
-    g_settings.placeOnSecondaryBar = Wh_GetIntSetting(L"placeOnSecondaryBar") != 0;
+    g_settings.placeOnSecondaryBar =
+        Wh_GetIntSetting(L"placeOnSecondaryBar") != 0;
     g_settings.openMenuOnHover = Wh_GetIntSetting(L"openMenuOnHover") != 0;
     int menuHoverDelay = Wh_GetIntSetting(L"menuHoverDelay");
     g_settings.menuHoverDelay = menuHoverDelay >= 0 ? menuHoverDelay : 0;
 
     for (int i = 0; i < kDefaultButtonCount; i++) {
-        g_settings.hideDefaultButtons[i] = Wh_GetIntSetting(L"hideDefaultButtons.%s", kDefaultButtons[i].settingKey) != 0;
+        g_settings.hideDefaultButtons[i] =
+            Wh_GetIntSetting(L"hideDefaultButtons.%s",
+                             kDefaultButtons[i].settingKey) != 0;
     }
 
-    g_settings.hideMoreButton = Wh_GetIntSetting(L"hideDefaultButtons.moreOptions") != 0;
-    g_settings.hideDetailsButton = Wh_GetIntSetting(L"hideDefaultButtons.details") != 0;
+    g_settings.hideMoreButton =
+        Wh_GetIntSetting(L"hideDefaultButtons.moreOptions") != 0;
+    g_settings.hideDetailsButton =
+        Wh_GetIntSetting(L"hideDefaultButtons.details") != 0;
 
-    memset(g_settings.hideSeparatorAfterButton, 0, sizeof(g_settings.hideSeparatorAfterButton));
-    g_settings.hideSeparatorAfterButton[kNewButtonIndex] = Wh_GetIntSetting(L"hideDefaultButtons.separatorAfterNew") != 0;
-    g_settings.hideSeparatorAfterButton[kDeleteButtonIndex] = Wh_GetIntSetting(L"hideDefaultButtons.separatorAfterDelete") != 0;
-    g_settings.hideSeparatorAfterButton[kViewButtonIndex] = Wh_GetIntSetting(L"hideDefaultButtons.separatorAfterView") != 0;
+    memset(g_settings.hideSeparatorAfterButton, 0,
+           sizeof(g_settings.hideSeparatorAfterButton));
+    g_settings.hideSeparatorAfterButton[kNewButtonIndex] =
+        Wh_GetIntSetting(L"hideDefaultButtons.separatorAfterNew") != 0;
+    g_settings.hideSeparatorAfterButton[kDeleteButtonIndex] =
+        Wh_GetIntSetting(L"hideDefaultButtons.separatorAfterDelete") != 0;
+    g_settings.hideSeparatorAfterButton[kViewButtonIndex] =
+        Wh_GetIntSetting(L"hideDefaultButtons.separatorAfterView") != 0;
 
     int itemSpacing = Wh_GetIntSetting(L"itemSpacing");
     g_settings.itemSpacing = itemSpacing < 0 ? -1 : itemSpacing;
@@ -3546,19 +4152,31 @@ void LoadSettings() {
     g_settings.newPlus = NewPlusSettings{};
     g_settings.newPlus.enabled = Wh_GetIntSetting(L"newPlus.enabled") != 0;
     g_settings.newPlus.showLabel = Wh_GetIntSetting(L"newPlus.showLabel") != 0;
-    g_settings.newPlus.buttonLabel = WindhawkUtils::StringSetting::make(L"newPlus.buttonLabel").get();
-    g_settings.newPlus.buttonIcon = WindhawkUtils::StringSetting::make(L"newPlus.buttonIcon").get();
-    g_settings.newPlus.templateFolder = TrimQuotesAndSpaces(WindhawkUtils::StringSetting::make(L"newPlus.templateFolder").get());
+    g_settings.newPlus.buttonLabel =
+        WindhawkUtils::StringSetting::make(L"newPlus.buttonLabel").get();
+    g_settings.newPlus.buttonIcon =
+        WindhawkUtils::StringSetting::make(L"newPlus.buttonIcon").get();
+    g_settings.newPlus.templateFolder = TrimQuotesAndSpaces(
+        WindhawkUtils::StringSetting::make(L"newPlus.templateFolder").get());
     g_settings.newPlus.showIcons = Wh_GetIntSetting(L"newPlus.showIcons") != 0;
-    g_settings.newPlus.showTemplatesFolderItem = Wh_GetIntSetting(L"newPlus.showTemplatesFolderItem") != 0;
-    g_settings.newPlus.keepOriginalNewButton = Wh_GetIntSetting(L"newPlus.keepOriginalNewButton") != 0;
+    g_settings.newPlus.showTemplatesFolderItem =
+        Wh_GetIntSetting(L"newPlus.showTemplatesFolderItem") != 0;
+    g_settings.newPlus.keepOriginalNewButton =
+        Wh_GetIntSetting(L"newPlus.keepOriginalNewButton") != 0;
 
     g_settings.contextMenuItem = ContextMenuItemSettings{};
-    g_settings.contextMenuItem.enabled = Wh_GetIntSetting(L"contextMenuItem.enabled") != 0;
-    g_settings.contextMenuItem.useNilesoftShell = Wh_GetIntSetting(L"contextMenuItem.useNilesoftShell") != 0;
-    g_settings.contextMenuItem.showLabel = Wh_GetIntSetting(L"contextMenuItem.showLabel") != 0;
-    g_settings.contextMenuItem.buttonLabel = WindhawkUtils::StringSetting::make(L"contextMenuItem.buttonLabel").get();
-    g_settings.contextMenuItem.buttonIcon = TrimQuotesAndSpaces(WindhawkUtils::StringSetting::make(L"contextMenuItem.buttonIcon").get());
+    g_settings.contextMenuItem.enabled =
+        Wh_GetIntSetting(L"contextMenuItem.enabled") != 0;
+    g_settings.contextMenuItem.useNilesoftShell =
+        Wh_GetIntSetting(L"contextMenuItem.useNilesoftShell") != 0;
+    g_settings.contextMenuItem.showLabel =
+        Wh_GetIntSetting(L"contextMenuItem.showLabel") != 0;
+    g_settings.contextMenuItem.buttonLabel =
+        WindhawkUtils::StringSetting::make(L"contextMenuItem.buttonLabel")
+            .get();
+    g_settings.contextMenuItem.buttonIcon = TrimQuotesAndSpaces(
+        WindhawkUtils::StringSetting::make(L"contextMenuItem.buttonIcon")
+            .get());
 
     g_settings.items.clear();
     for (int i = 0; i < 100; i++) {
@@ -3566,36 +4184,42 @@ void LoadSettings() {
         swprintf(prefix, ARRAYSIZE(prefix), L"items[%d]", i);
         bool isEmpty = false;
         ActionItem item = LoadActionItem(prefix, 0, &isEmpty);
-        if (isEmpty) break;
+        if (isEmpty)
+            break;
         g_settings.items.push_back(std::move(item));
     }
 }
-
 
 BOOL Wh_ModInit() {
     Wh_Log(L">");
     LoadSettings();
 
     if (GetFileExplorerExtensionsModuleHandle()) {
-        if (!HookFileExplorerExtensionsIfLoaded(false)) return FALSE;
+        if (!HookFileExplorerExtensionsIfLoaded(false))
+            return FALSE;
     } else {
         Wh_Log(L"FileExplorerExtensions.dll isn't loaded yet");
         HMODULE kernelBaseModule = GetModuleHandle(L"kernelbase.dll");
-        auto pKernelBaseLoadLibraryExW = (decltype(&LoadLibraryExW))GetProcAddress(kernelBaseModule, "LoadLibraryExW");
-        if (!pKernelBaseLoadLibraryExW) return FALSE;
-        WindhawkUtils::SetFunctionHook(pKernelBaseLoadLibraryExW, LoadLibraryExW_Hook, &LoadLibraryExW_Original);
+        auto pKernelBaseLoadLibraryExW =
+            (decltype(&LoadLibraryExW))GetProcAddress(kernelBaseModule,
+                                                      "LoadLibraryExW");
+        if (!pKernelBaseLoadLibraryExW)
+            return FALSE;
+        WindhawkUtils::SetFunctionHook(pKernelBaseLoadLibraryExW,
+                                       LoadLibraryExW_Hook,
+                                       &LoadLibraryExW_Original);
     }
 
     RegisterContextMenuOwnerClass();
     return TRUE;
 }
 
-
 void Wh_ModAfterInit() {
     Wh_Log(L">");
     HookFileExplorerExtensionsIfLoaded(true);
     for (HWND hWnd : GetFileExplorerWnds()) {
-        RunFromWindowThread(hWnd, [](PVOID) { ScanCurrentThreadForCommandBars(); }, nullptr);
+        RunFromWindowThread(
+            hWnd, [](PVOID) { ScanCurrentThreadForCommandBars(); }, nullptr);
     }
 }
 
@@ -3611,8 +4235,11 @@ void Wh_ModUninit() {
 
     for (HWND hWnd : GetFileExplorerWnds()) {
         Wh_Log(L"Removing buttons for window %08X", (DWORD)(ULONG_PTR)hWnd);
-        if (!RunFromWindowThread(hWnd, [](PVOID) { RemoveButtonsForCurrentThread(); }, nullptr)) {
-            Wh_Log(L"Couldn't reach the thread of window %08X", (DWORD)(ULONG_PTR)hWnd);
+        if (!RunFromWindowThread(
+                hWnd, [](PVOID) { RemoveButtonsForCurrentThread(); },
+                nullptr)) {
+            Wh_Log(L"Couldn't reach the thread of window %08X",
+                   (DWORD)(ULONG_PTR)hWnd);
         }
     }
 
@@ -3625,7 +4252,8 @@ void Wh_ModUninit() {
         std::vector<std::pair<DWORD, HWND>> leftovers;
         {
             std::lock_guard<std::mutex> lock(g_contextMenuOwnersMutex);
-            leftovers.assign(g_contextMenuOwners.begin(), g_contextMenuOwners.end());
+            leftovers.assign(g_contextMenuOwners.begin(),
+                             g_contextMenuOwners.end());
         }
 
         for (auto const& [threadId, hWnd] : leftovers) {
@@ -3634,17 +4262,27 @@ void Wh_ModUninit() {
                 g_contextMenuOwners.erase(threadId);
                 continue;
             }
-            Wh_Log(L"Destroying leftover context menu owner window of thread %u", threadId);
-            if (!RunFromWindowThread(hWnd, [](PVOID) { DestroyContextMenuOwnerWindowForCurrentThread(); }, nullptr)) {
+            Wh_Log(
+                L"Destroying leftover context menu owner window of thread %u",
+                threadId);
+            if (!RunFromWindowThread(
+                    hWnd,
+                    [](PVOID) {
+                        DestroyContextMenuOwnerWindowForCurrentThread();
+                    },
+                    nullptr)) {
                 Wh_Log(L"Couldn't reach thread %u", threadId);
             }
         }
     }
 
     if (g_contextMenuOwnerClassRegistered) {
-        if (!UnregisterClassW(ContextMenuOwnerClassName().c_str(), GetCurrentModuleHandle())) {
+        if (!UnregisterClassW(ContextMenuOwnerClassName().c_str(),
+                              GetCurrentModuleHandle())) {
             std::lock_guard<std::mutex> lock(g_contextMenuOwnersMutex);
-            Wh_Log(L"UnregisterClass failed: %u, %zu owner window(s) left behind", GetLastError(), g_contextMenuOwners.size());
+            Wh_Log(
+                L"UnregisterClass failed: %u, %zu owner window(s) left behind",
+                GetLastError(), g_contextMenuOwners.size());
         }
         g_contextMenuOwnerClassRegistered = false;
     }
@@ -3663,6 +4301,7 @@ void Wh_ModSettingsChanged() {
     Wh_Log(L">");
     LoadSettings();
     for (HWND hWnd : GetFileExplorerWnds()) {
-        RunFromWindowThread(hWnd, [](PVOID) { RefreshButtonsForCurrentThread(); }, nullptr);
+        RunFromWindowThread(
+            hWnd, [](PVOID) { RefreshButtonsForCurrentThread(); }, nullptr);
     }
 }
