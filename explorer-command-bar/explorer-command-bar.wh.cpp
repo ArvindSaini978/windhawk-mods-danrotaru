@@ -27,6 +27,8 @@ buttons, separators and spacing you don't want.
 Designed for Windows 11 24H2 / 25H2 with the WinAppSDK (WinUI 3) File
 Explorer.
 
+---
+
 ## Features
 
 - **Custom buttons** - add as many toolbar buttons as you like, each running a
@@ -62,6 +64,8 @@ Explorer.
   navigation, new tabs and new windows, and everything is cleanly restored when
   the mod is disabled.
 
+---
+
 ## Screenshots
 
 Hiding built‑in buttons and separators:
@@ -71,6 +75,8 @@ Hiding built‑in buttons and separators:
 You may hide even all options, and use only your custom ones:
 
 ![Hide All buttons](https://raw.githubusercontent.com/DanRotaru/windhawk-mods/master/explorer-command-bar/screenshots/hide-all-buttons.jpg)
+
+---
 
 ## Command parameters
 
@@ -85,14 +91,18 @@ used placeholder has no value (nothing selected, or a non-filesystem location
 like *This PC*), the command is launched without any parameters. Commands run
 with the active tab's folder as their working directory.
 
+---
+
 ## Internal commands
 
-Instead of an executable, the **Command** field can run built-in File Explorer actions:
+Instead of an executable, the **Command** field can run built-in File Explorer actions (supports `internal:` or `int:`, case-insensitive):
 
 * `internal:TogglePreview` - toggles the Preview pane.
 * `internal:ToggleDetails` - toggles the Details pane.
 * `internal:OpenWith` - opens the native Windows "How do you want to open this file?" application chooser dialog for the selected file.
 * `internal:FolderOptions` - opens the classic Folder Options control panel dialog.
+
+---
 
 ## Icons
 
@@ -114,6 +124,8 @@ The **Icon glyph or icon path** field accepts several forms:
   execution aliases such as `wt.exe` are resolved to their real target).
 * **Hide icon** - enable the toggle to show no icon at all.
 
+---
+
 ## Context menu item
 
 Enable **Add the context menu item** in the **Context menu item** settings
@@ -126,6 +138,8 @@ The **Let File Explorer show the menu** option is intended for Nilesoft Shell.
 Because Nilesoft replaces the menu from inside Explorer rather than exposing an
 `IContextMenu` handler, this option asks the active file list to display its own
 menu. In that mode Explorer chooses its position.
+
+---
 
 ## Replace New to New+
 
@@ -158,6 +172,8 @@ familiar chevron (˅) is drawn after the text, and with an empty label - or with
 the label turned off - only the icon is shown, without a chevron. An empty icon
 setting reuses the icon of Explorer's own New button.
 
+---
+
 ### Filename variables
 
 When *Replace variables* is enabled in PowerToys, these are substituted in the
@@ -177,6 +193,8 @@ name of the created copy:
 Unlike New+, variables are replaced in the file *name* only, never inside the
 file contents.
 
+--
+
 ## Default configuration
 
 Out of the box the mod adds:
@@ -195,6 +213,8 @@ Items whose command isn't installed simply do nothing when clicked (the failure
 is written to the mod log), so remove the ones you don't need and add your own.
 All of the built-in buttons stay visible by default, and the New+ button is
 turned off. Everything is configurable in the mod settings.
+
+---
 
 ## How it works
 
@@ -236,7 +256,7 @@ a new tab or navigating to another folder makes them appear.
     - command: internal:FolderOptions
       $name: Command
       $description: >-
-        The executable to run, or an internal command (internal:TogglePreview, internal:ToggleDetails, internal:FolderOptions, internal:OpenWith).
+        The executable to run, or an internal command using 'internal:' or 'int:' prefix (case-insensitive: TogglePreview, ToggleDetails, FolderOptions, OpenWith).
     - parameters: ""
       $name: Parameters
       $description: >-
@@ -496,7 +516,6 @@ a new tab or navigating to another folder makes them appear.
 
 #include <windhawk_utils.h>
 #include <windows.h>
-
 
 #include <exdisp.h>
 #include <servprov.h>
@@ -1358,7 +1377,6 @@ void LaunchItemForWindow(HWND hExplorerWnd,
     if (item.parameters.find(L"%sel_each%") != std::wstring::npos) {
         if (capturedContext.allSelectedPaths.empty()) {
             std::wstring param = item.parameters;
-            // Clean up placeholders if nothing is selected
             ReplacePlaceholder(param, L"\"%sel_each%\"", L"");
             ReplacePlaceholder(param, L"%sel_each%", L"");
             ReplacePlaceholder(param, L"%path%", capturedContext.folderPath);
@@ -1366,16 +1384,21 @@ void LaunchItemForWindow(HWND hExplorerWnd,
             return;
         }
 
-        for (const auto& path : capturedContext.allSelectedPaths) {
+        // Safety throttle: prevent spawning hundreds of processes on large
+        // selections
+        constexpr size_t kMaxBatch = 20;
+        size_t count =
+            std::min(capturedContext.allSelectedPaths.size(), kMaxBatch);
+
+        for (size_t i = 0; i < count; i++) {
+            const auto& path = capturedContext.allSelectedPaths[i];
             std::wstring param = item.parameters;
             std::wstring safePath = path;
             if (!safePath.empty() && safePath.back() == L'\\' &&
                 safePath.size() > 3) {
-                safePath +=
-                    L'\\';  // Escape trailing backslash before closing quote
+                safePath += L'\\';
             }
 
-            // Replace quoted form first to avoid nested double-quotes
             size_t qPos = param.find(L"\"%sel_each%\"");
             if (qPos != std::wstring::npos) {
                 param.replace(qPos, 12, L"\"" + safePath + L"\"");
@@ -1478,14 +1501,30 @@ HWND GetExplorerWindowForElement(mux::FrameworkElement const& element) {
     return hWnd;
 }
 
+bool IsCommandMatch(std::wstring_view cmd, std::wstring_view actionName) {
+    constexpr std::wstring_view kInternal = L"internal:";
+    constexpr std::wstring_view kInt = L"int:";
+
+    if (cmd.size() >= kInternal.size() &&
+        _wcsnicmp(cmd.data(), kInternal.data(), kInternal.size()) == 0) {
+        return _wcsicmp(cmd.data() + kInternal.size(), actionName.data()) == 0;
+    }
+    if (cmd.size() >= kInt.size() &&
+        _wcsnicmp(cmd.data(), kInt.data(), kInt.size()) == 0) {
+        return _wcsicmp(cmd.data() + kInt.size(), actionName.data()) == 0;
+    }
+    return false;
+}
+
 void OnActionInvoked(mux::FrameworkElement const& elementForWindow,
                      ActionItem const& item) {
     if (item.command.empty() || g_unloading)
         return;
 
     HWND hWnd = GetExplorerWindowForElement(elementForWindow);
+    std::wstring_view cmd = item.command;
 
-    if (item.command == L"internal:TogglePreview") {
+    if (IsCommandMatch(cmd, L"TogglePreview")) {
         INPUT inputs[4] = {};
         inputs[0].type = INPUT_KEYBOARD;
         inputs[0].ki.wVk = VK_MENU;
@@ -1501,7 +1540,7 @@ void OnActionInvoked(mux::FrameworkElement const& elementForWindow,
         return;
     }
 
-    if (item.command == L"internal:ToggleDetails") {
+    if (IsCommandMatch(cmd, L"ToggleDetails")) {
         INPUT inputs[6] = {};
         inputs[0].type = INPUT_KEYBOARD;
         inputs[0].ki.wVk = VK_MENU;
@@ -1522,7 +1561,7 @@ void OnActionInvoked(mux::FrameworkElement const& elementForWindow,
         return;
     }
 
-    if (item.command == L"internal:FolderOptions") {
+    if (IsCommandMatch(cmd, L"FolderOptions")) {
         RunShellWorkOnWorkerThread([]() {
             ShellExecuteW(nullptr, L"open", L"control.exe", L"folders", nullptr,
                           SW_SHOWNORMAL);
@@ -1530,27 +1569,16 @@ void OnActionInvoked(mux::FrameworkElement const& elementForWindow,
         return;
     }
 
-    if (item.command == L"internal:OpenWith") {
+    if (IsCommandMatch(cmd, L"OpenWith")) {
         ExplorerContext context = GetExplorerContext(hWnd);
-        // Guard: only execute if an item is selected and it is a file, not a
-        // directory
         if (!context.selectedPath.empty() &&
             !DirectoryExists(context.selectedPath)) {
             std::wstring targetPath = context.selectedPath;
             RunShellWorkOnWorkerThread([hWnd, targetPath]() {
-                HMODULE hShell32 = GetModuleHandleW(L"shell32.dll");
-                if (!hShell32)
-                    hShell32 = LoadLibraryW(L"shell32.dll");
-                if (hShell32) {
-                    typedef void(WINAPI * OpenAs_RunDLL_t)(HWND, HINSTANCE,
-                                                           LPCWSTR, int);
-                    auto pOpenAs = (OpenAs_RunDLL_t)GetProcAddress(
-                        hShell32, "OpenAs_RunDLLW");
-                    if (pOpenAs) {
-                        pOpenAs(hWnd, nullptr, targetPath.c_str(),
-                                SW_SHOWNORMAL);
-                    }
-                }
+                OPENASINFO oai = {};
+                oai.pcszFile = targetPath.c_str();
+                oai.oaifInFlags = OAIF_EXEC | OAIF_ALLOW_REGISTRATION;
+                SHOpenWithDialog(hWnd, &oai);
             });
         }
         return;
@@ -2399,7 +2427,20 @@ muxc::IconElement CreateIconElement(std::wstring const& iconSetting,
 muxc::IconElement MakeCommandButtonIcon(ActionItem const& item) {
     if (item.hideIcon)
         return nullptr;
-    return CreateIconElement(item.icon, item.command, L"");
+
+    PCWSTR defaultGlyph = L"";
+    std::wstring_view cmd = item.command;
+
+    if (IsCommandMatch(cmd, L"OpenWith"))
+        defaultGlyph = L"\uE7AC";
+    else if (IsCommandMatch(cmd, L"TogglePreview"))
+        defaultGlyph = L"\uE8A1";
+    else if (IsCommandMatch(cmd, L"ToggleDetails"))
+        defaultGlyph = L"\uE9F9";
+    else if (IsCommandMatch(cmd, L"FolderOptions"))
+        defaultGlyph = L"\uE713";
+
+    return CreateIconElement(item.icon, item.command, defaultGlyph);
 }
 
 muxc::IconElement MakeNewPlusButtonIcon(std::wstring const& iconSetting,
